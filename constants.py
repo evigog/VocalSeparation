@@ -1,9 +1,10 @@
-num_epochs = 500
+num_epochs = 50
 
-batch_size = 32
-feature_number = 4
-time_max = 100
+feature_number = 13
+time_max = 4
 
-hidden_size = 200
-
+learning_rate = 0.0001
+hidden_size = 256
 dropout_rate = 0.5
+
+CKPT_PATH = "ckpt/"
