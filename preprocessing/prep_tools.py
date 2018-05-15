@@ -18,7 +18,7 @@ def read_wavfile(wav_filename, channel='mixed'):
         wav_filename (path): The filename of the WAV audio signal to read.
         channel (str): The audio channel selected.
     Outputs:
-        Zxx (2D numpy array): The 1D-array of audio samples read.
+        samples (1D numpy array): The 1D-array of audio samples read.
     """
     assert channel in {'instrumental', 'vocals', 'mixed'}
     wav = wavfile.read(wav_filename)[1]
@@ -40,6 +40,7 @@ def wav_to_mfcc(wav_filename, channel='mixed'):
     Outputs:
         mfccs (2D numpy array): The MFCCs [n_windows, n_ceps] of the selected mono audio signal.
         mels (2D numpy array): The Mel Spectrum [n_windows, n_mels] of the selected mono audio signal.
+        mweights (2D numpy array): The Mel Spectrum weights used for Griffin-Lim reconstruction.
     """
     samples = read_wavfile(wav_filename, channel)
     mfccs, mspec, mweights = mfcc(samples)
@@ -51,6 +52,7 @@ def mfcc_to_wav(mfccs, mel_weights):
 
     Args:
         mfccs (2D numpy array): The MFCCs [nfft//2 + 1, n_windows] to convert.
+        mel_weights (2D numpy array): The Mel Spectrum weights used for Griffin-Lim reconstruction.
     Outputs:
         wav (1D numpy array):  The reconstructed mono audio signal.
     """
@@ -76,7 +78,8 @@ def mspec_to_wav(logmspec, mel_weights):
     """Convert a (log) Mel Spectrum 2D numpy array to a time series audio signal.
 
     Args:
-        mspec (2D numpy array): The (log) Mel Spectrum [n_mels, n_windows] to convert.
+        logmspec (2D numpy array): The (log) Mel Spectrum [n_mels, n_windows] to convert.
+        mel_weights (2D numpy array): The Mel Spectrum weights used for Griffin-Lim reconstruction.
     Outputs:
         wav (1D numpy array):  The reconstructed mono audio signal.
     """
@@ -181,10 +184,9 @@ def save_audio_to_file(x, filename='out.wav', sample_rate=Preprocessing.FS):
     """Save a mono signal to a file.
 
     Args:
-        x (1-dim Numpy array): The audio signal to save. The signal values should be in the range [-1.0, 1.0].
+        x (1D numpy array): The audio signal to save. The signal values should be in the range [-1.0, 1.0].
+        filename (path): Name of the file to save.
         sample_rate (int): The sample rate of the signal, in Hz.
-        outfile: Name of the file to save.
-
     """
     x_max = np.max(abs(x))
     assert x_max <= 1.0, 'Input audio value is out of range. Should be in the range [-1.0, 1.0].'
