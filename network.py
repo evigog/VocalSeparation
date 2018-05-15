@@ -3,6 +3,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 import os
 from constants import *
+from tensorflow.contrib.rnn import GRUCell, MultiRNNCell
 
 
 class RNN_network:
@@ -17,8 +18,7 @@ class RNN_network:
         return self.net()
 
     def _net(self):
-        cell = tf.contrib.rnn.BasicRNNCell(hidden_size)
-        #cell = tf.nn.rnn_cell.DropoutWrapper(cell, output_keep_prob=dropout_rate)
+        cell = MultiRNNCell([GRUCell(hidden_size) for _ in range(n_layer)])
 
         output_rnn, self.current_state = tf.nn.dynamic_rnn(cell, self.batchX_placeholder, dtype=tf.float32)
 
