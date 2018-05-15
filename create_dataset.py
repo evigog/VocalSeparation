@@ -1,3 +1,3 @@
-from preprocessing import prepare_dataset
+from preprocessing import *
 
-prepare_dataset.create_dataset(1000)
+create_dataset(1000)

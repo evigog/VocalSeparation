@@ -24,7 +24,6 @@ class RNN_network:
 
         input_size = self.shape(self.batchX_placeholder)[2]
         output = tf.layers.dense(inputs=output_rnn, units=input_size, activation=tf.nn.relu)
-
         return output
 
     def loss(self):

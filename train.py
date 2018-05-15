@@ -7,28 +7,22 @@ import argparse
 import os
 import shutil
 
-i = 0
-
-def getBatch1(X, Y):
-    global i
-    X_batch = X[i]
-    Y_batch = Y[i]
-    i += 1
-
-    return [X_batch], [Y_batch]
-
 def getBatch(X, Y):
-    X, Y = self.unison_shuffle(X.T, Y.T)
+    X, Y = unison_shuffle(X.T, Y.T)
     return X.T, Y.T
+
+def unison_shuffle(a, b):
+    assert len(a) == len(b)
+    p = np.random.permutation(len(a))
+    return a[p], b[p]
 
 def train():
     X, Y = data.load_batch()
 
     net = network.RNN_network()
     total_loss = net.loss()
-    optimizer = tf.train.AdagradOptimizer(learning_rate).minimize(total_loss)
 
-    print("Start training")
+    optimizer = tf.train.AdagradOptimizer(learning_rate).minimize(total_loss)
 
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
@@ -38,10 +32,9 @@ def train():
         net.load_state(sess, CKPT_PATH)
 
         for epoch_idx in range(num_epochs):
-            print("ok")
-            batchX, batchY = getBatch1(X, Y)
+            batchX, batchY = getBatch(X, Y)
 
-            print("New data, epoch", epoch_idx)
+            print("Epoch", epoch_idx)
 
             for i in range(len(batchX)):
                 _total_loss, _train_step, _output = sess.run(
@@ -55,6 +48,10 @@ def train():
 
                 print("Loss", _total_loss)
 
+                if _total_loss == np.inf:
+                    print(batchY[i])
+                    exit()
+
             if epoch_idx % 10 == 0:
                 tf.train.Saver().save(sess, CKPT_PATH + '/checkpoint', global_step=i)
 
@@ -63,13 +60,13 @@ def setup_path(resume):
         if os.path.exists(CKPT_PATH):
             shutil.rmtree(CKPT_PATH)
     if not os.path.exists(CKPT_PATH):
-        print("New run")
+        print("Start run from scratch")
         os.makedirs(CKPT_PATH)
 
 if __name__ == '__main__':
     parser =  argparse.ArgumentParser()
 
-    parser.add_argument('resume', help = "int, 1 if you want to continue a previous training else 0.", type = int)
+    parser.add_argument('--resume', default=0, help = "int, 1 if you want to continue a previous training else 0.", type = int)
 
     args = parser.parse_args()
 
