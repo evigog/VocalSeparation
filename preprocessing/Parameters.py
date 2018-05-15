@@ -1,6 +1,7 @@
 #all parameters defined
 
 class Preprocessing:
+    BATCH_SIZE = 8
     MAX_TIME = 4
     NCEPS = 40
     NMELS = 40

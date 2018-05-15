@@ -151,7 +151,7 @@ def wav_to_stft(wav_filename, channel='mixed'):
                              boundary=Preprocessing.BOUNDARY,
                              padded=Preprocessing.PADDED,
                              axis=-1)
-    return Zxx
+    return Zxx.T
 
 
 def stft_to_wav(Zxx):
@@ -199,6 +199,10 @@ def save_audio_to_file(x, filename='out.wav', sample_rate=Preprocessing.FS):
     f.setparams((1, 2, sample_rate, 0, 'NONE', 'Uncompressed'))
     f.writeframes(data.tostring())
     f.close()
+
+
+def save_audio_to_file2(x, filename='out.wav', sample_rate=Preprocessing.FS):
+    wavfile.write(filename, sample_rate, x)
 
 
 def dither(samples, level=1.0):

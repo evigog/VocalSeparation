@@ -1,6 +1,5 @@
-from preprocessing.prep_tools import *
-from scipy.io import wavfile
-from preprocessing.Parameters import *
+from prep_tools import *
+from Parameters import *
 from constants import *
 
 import os
@@ -8,44 +7,37 @@ import random as rand
 
 
 def load_dataset(n_samples):
-    cache_path = '/Users/evi/Documents/KTH_ML/Period_4/Speech_Recognition/Project/temp'
-    cache_filename = 'data_train.npz'
-    path_dataset = 'data/Wavfile'  # all songs are sampled at 16kHz
+    path_dataset = '../data/Wavfile'  # all songs are sampled at 16kHz
+    if not os.path.isfile('../coefficients/batch_stft.npz'):
+        filenames = [os.path.join(path_dataset, f) for f in os.listdir(path_dataset)
+                    if os.path.isfile(os.path.join(path_dataset, f))][:n_samples]
+        # Not efficient, it's better to load all the files at once
+        stft_mixed = [wav_to_stft(f, channel='mixed') for f in filenames]
+        stft_bg = [wav_to_stft(f, channel='instrumental') for f in filenames]
+        stft_vc = [wav_to_stft(f, channel='vocals') for f in filenames]
+        mfcc_mixed = [wav_to_mfcc(f, channel='mixed')[0] for f in filenames]
+        mfcc_bg = [wav_to_mfcc(f, channel='instrumental')[0] for f in filenames]
+        mfcc_vc = [wav_to_mfcc(f, channel='vocals')[0] for f in filenames]
 
-    if not os.path.isfile(cache_path + str(n_samples) + cache_filename):
-        samples = [wavfile.read(os.path.join(path_dataset, f))[1] for f in os.listdir(path_dataset)
-                    if os.path.isfile(os.path.join(path_dataset, f))] [:n_samples]
-        np.savez_compressed(cache_path + str(n_samples) + cache_filename, samples=samples)
-        print('Saved compressed dataset to cache.')
-    else:
-        data_train = np.load(cache_path + str(n_samples) + cache_filename)
-        samples = data_train['samples'].tolist()
-        print('Loaded compressed dataset from cache.')
+        np.savez_compressed('../coefficients/stft.npz', mixed=stft_mixed ,bg=stft_bg, vc=stft_vc)
+        np.savez_compressed('../coefficients/mfcc.npz', mixed=mfcc_mixed ,bg=mfcc_bg, vc=mfcc_vc)
 
+        #split coef matrices into batches
+        batch_stft_mixed = [coef_to_batch(src_mixed) for src_mixed in stft_mixed]
+        batch_stft_bg = [coef_to_batch(src_bg) for src_bg in stft_bg]
+        batch_stft_vc = [coef_to_batch(src_vc) for src_vc in stft_vc]
+        batch_mfcc_mixed = [coef_to_batch(src_mixed) for src_mixed in mfcc_mixed]
+        batch_mfcc_bg = [coef_to_batch(src_bg) for src_bg in mfcc_bg]
+        batch_mfcc_vc = [coef_to_batch(src_vc) for src_vc in mfcc_vc]
 
-    mfcc_mixed = [mfcc(np.sum(smp, axis=-1)) for smp in samples]
-    mfcc_bg = [mfcc(smp[:,0]) for smp in samples]
-    mfcc_vc = [mfcc(smp[:,1]) for smp in samples]
+        np.savez_compressed('../coefficients/batch_stft.npz', mixed=batch_stft_mixed ,bg=batch_stft_bg, vc=batch_stft_vc)
+        np.savez_compressed('../coefficients/batch_mfcc.npz', mixed=batch_mfcc_mixed ,bg=batch_mfcc_bg, vc=batch_mfcc_vc)
+        print('Saved coefficients.')
 
-    clear_mfcc_mixed = [remove_dirty(song) for song in mfcc_mixed]
-    clear_mfcc_bg = [remove_dirty(song) for song in mfcc_bg]
-    clear_mfcc_vc = [remove_dirty(song) for song in mfcc_vc]
+    batch_stft = np.load('../coefficients/batch_stft.npz')
+    batch_mfcc = np.load('../coefficients/batch_mfcc.npz')
 
-    np.save('coefficients/mfcc_mixed', clear_mfcc_mixed)
-    np.save('coefficients/mfcc_bg', clear_mfcc_bg)
-    np.save('coefficients/mfcc_vc', clear_mfcc_vc)
-
-    #split coef matrices into batches
-    batch_mixed = [coef_to_batch(src_mixed) for src_mixed in clear_mfcc_mixed]
-    batch_bg = [coef_to_batch(src_bg) for src_bg in clear_mfcc_bg]
-    batch_vc = [coef_to_batch(src_vc) for src_vc in clear_mfcc_vc]
-
-    np.save('coefficients/batch_mixed4', batch_mixed)
-    np.save('coefficients/batch_bg4', batch_bg)
-    np.save('coefficients/batch_vc4', batch_vc)
-
-    return samples, batch_mixed, batch_bg, batch_vc
-
+    return batch_stft, batch_mfcc
 
 
 #split dataset into training and testing
@@ -80,7 +72,7 @@ def split_dataset():
         os.rename(os.path.join(path_dataset, f), os.path.join(test_path, f))
 
 #take care of nan or inf values
-def remove_dirty(data):
+def remove_dirty(data):  # SHOULD NOT BE NECESSARY AFTER MFCC FIX
 
     #compute avg after removing nan
     not_nan = data[np.isfinite(data)]
@@ -96,7 +88,6 @@ def remove_dirty(data):
 #transform matrix coefficient form to batches
 #computed for one song
 def coef_to_batch(src): #output shape: (num_batches, num_frames, num_coef)
-
     num_frames = src.shape[0]
     num_coef = src.shape[1]
 
@@ -106,23 +97,19 @@ def coef_to_batch(src): #output shape: (num_batches, num_frames, num_coef)
         z = np.zeros((1, int(mod) * num_coef)).reshape((-1, num_coef))
         src = np.vstack((src, z))  #apppend zeros in the end
 
-    batches = np.reshape(src, (-1, Preprocessing.BATCH_SIZE, Preprocessing.NUM_COEF))
+    batches = np.reshape(src, (-1, Preprocessing.BATCH_SIZE, num_coef))
 
     return batches
 
 #transform batches to matrix coefficient form
 #computed for one song
-def batch_to_coef(batches, original_frames):  #output shape: (num_frames, num_coef)
+def batch_to_coef(batches, original_frames=409):  #output shape: (num_frames, num_coef)
 
    num_batches, num_frames, num_coefs = batches.shape
 
    coefs = np.reshape(batches, (-1, num_coefs))
    #remove padding lines
-   without_padding = coefs[0:original_frames]
+   # without_padding = coefs[0:original_frames]  DISCUSS 16/05/2018
 
-   return without_padding
-
-
-split_dataset()
-
-
+   # return without_padding   DISCUSS 16/05/2018
+   return coefs
