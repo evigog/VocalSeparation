@@ -1,22 +1,93 @@
 import numpy as np
-from scipy.signal import lfilter, hamming
-from scipy.fftpack import fft
-from scipy.fftpack.realtransforms import dct
+from scipy.signal import lfilter, hamming, stft
+from scipy.fftpack import fft, dct, idct
+from scipy.optimize import linprog
+from scipy.linalg import lstsq
+import wave
+import array
+from scipy.io import wavfile
+from Parameters import *
 
 
-def tidigit2labels(tidigitsarray):
+def read_wavfile(wav_filename, channel='mixed'):
+    """Read a WAV audio file and returns a 1D numpy array of time series samples.
+
+    Args:
+        wav_filename (path): The filename of the WAV audio signal to read.
+        channel (str): The audio channel selected.
+    Outputs:
+        Zxx (2D numpy array): The 1D-array of audio samples read.
     """
-    Return a list of labels including gender, speaker, digit and repetition information for each
-    utterance in tidigitsarray. Useful for plots.
+    assert channel in {'instrumental', 'vocals', 'mixed'}
+    wav = wavfile.read(wav_filename)[1]
+    if channel == 'instrumental':
+        samples = wav[:,0]
+    elif channel == 'vocals':
+        samples = wav[:,1]
+    else:
+        samples = np.sum(wav, axis=-1)
+    return samples
+
+
+def wav_to_stft(wav_filename, channel='mixed'):
+    """Convert a WAV audio signal to a STFT magnitude-only 2D numpy array.
+
+    Args:
+        wav_filename (path): The filename of the WAV audio signal to convert.
+        channel (str): The audio channel selected.
+    Outputs:
+        Zxx (2D numpy array): The STFT [nfft//2 + 1, n_windows] of the selected mono audio signal.
     """
-    labels = []
-    nex = len(tidigitsarray)
-    for ex in range(nex):
-        labels.append(tidigitsarray[ex]['gender'] + '_' +
-                      tidigitsarray[ex]['speaker'] + '_' +
-                      tidigitsarray[ex]['digit'] + '_' +
-                      tidigitsarray[ex]['repetition'])
-    return labels
+    samples = read_wavfile(wav_filename, channel)
+    freqs, times, Zxx = stft(samples,
+                             fs=Preprocessing.FS,
+                             window=Preprocessing.WINDOW,
+                             nperseg=Preprocessing.WINLEN,
+                             noverlap=Preprocessing.WINSHIFT,
+                             nfft=Preprocessing.NFFT,
+                             detrend=Preprocessing.DETREND,
+                             return_onesided=Preprocessing.ONESIDED,
+                             boundary=Preprocessing.BOUNDARY,
+                             padded=Preprocessing.PADDED,
+                             axis=-1)
+    return Zxx
+
+
+def wav_to_mfcc(wav_filename, channel='mixed'):
+    """Convert a WAV audio signal to its MFCC 2D numpy array.
+
+    Args:
+        wav_filename (path): The WAV audio signal to convert.
+        channel (str): The audio channel selected.
+    Outputs:
+        Zxx (2D numpy array): The MFCCs of the selected mono audio signal.
+    """
+    samples = read_wavfile(wav_filename, channel)
+    mfccs, mspec = mfcc(samples)
+    return mfccs, mspec
+
+
+def save_audio_to_file(x, sample_rate=Preprocessing.FS, filename='out.wav'):
+    """Save a mono signal to a file.
+
+    Args:
+        x (1-dim Numpy array): The audio signal to save. The signal values should be in the range [-1.0, 1.0].
+        sample_rate (int): The sample rate of the signal, in Hz.
+        outfile: Name of the file to save.
+
+    """
+    x_max = np.max(abs(x))
+    assert x_max <= 1.0, 'Input audio value is out of range. Should be in the range [-1.0, 1.0].'
+    x = x*32767.0
+    data = array.array('h')
+    for i in range(len(x)):
+        cur_samp = int(round(x[i]))
+        data.append(cur_samp)
+    f = wave.open(filename, 'w')
+    f.setparams((1, 2, sample_rate, 0, 'NONE', 'Uncompressed'))
+    f.writeframes(data.tostring())
+    f.close()
+
 
 def dither(samples, level=1.0):
     """
@@ -32,27 +103,12 @@ def dither(samples, level=1.0):
     return samples + level*np.random.normal(0,1, samples.shape)
 
 
-def lifter(mfcc, lifter=22):
-    """
-    Applies liftering to improve the relative range of MFCC coefficients.
-
-       mfcc: NxM matrix where N is the number of frames and M the number of MFCC coefficients
-       lifter: lifering coefficient
-
-    Returns:
-       NxM array with lifeterd coefficients
-    """
-    nframes, nceps = mfcc.shape
-    cepwin = 1.0 + lifter/2.0 * np.sin(np.pi * np.arange(nceps) / lifter)
-    return np.multiply(mfcc, np.tile(cepwin, nframes).reshape((nframes,nceps)))
-
 def hz2mel(f):
     """Convert an array of frequency in Hz into mel."""
     return 1127.01048 * np.log(f/700 +1)
 
 def trfbank(fs, nfft, lowfreq=133.33, linsc=200/3., logsc=1.0711703, nlinfilt=13, nlogfilt=27, equalareas=False):
     """Compute triangular filterbank for MFCC computation.
-
     Inputs:
     fs:         sampling frequency (rate)
     nfft:       length of the fft
@@ -61,7 +117,6 @@ def trfbank(fs, nfft, lowfreq=133.33, linsc=200/3., logsc=1.0711703, nlinfilt=13
     logsc:      scale for the logaritmic filters
     nlinfilt:   number of linear filters
     nlogfilt:   number of log filters
-
     Outputs:
     res:  array with shape [N, nfft], with filter amplitudes for each column.
             (N=nlinfilt+nlogfilt)
@@ -103,9 +158,9 @@ def trfbank(fs, nfft, lowfreq=133.33, linsc=200/3., logsc=1.0711703, nlinfilt=13
     return fbank
 
 
-def mfcc(samples, winlen=400, winshift=200, preempcoeff=0.97, nfft=512,
-         nceps=13, samplingrate=20000, liftercoeff=22, with_lifter=True,
-         until_mel=False):
+def mfcc(samples, winlen=Preprocessing.WINLEN, winshift=Preprocessing.WINSHIFT,
+            preempcoeff=0.97, nfft=Preprocessing.NFFT, nceps=13,
+            samplingrate=Preprocessing.FS, liftercoeff=22, with_lifter=False):
     """Computes Mel Frequency Cepstrum Coefficients.
 
     Args:
@@ -125,14 +180,12 @@ def mfcc(samples, winlen=400, winshift=200, preempcoeff=0.97, nfft=512,
     preemph = preemp(frames, preempcoeff)
     windowed = windowing(preemph)
     spec = powerSpectrum(windowed, nfft)
-    mspec = logMelSpectrum(spec, samplingrate)
-    if until_mel:
-        return mspec
+    mspec = logMelSpectrum(spec, samplingrate)[0]
     ceps = cepstrum(mspec, nceps)
     if with_lifter:
-        return lifter(ceps, liftercoeff)
+        return lifter(ceps, liftercoeff), mspec
     else:
-        return ceps
+        return ceps, mspec
 
 
 def enframe(samples, winlen, winshift):
@@ -146,18 +199,21 @@ def enframe(samples, winlen, winshift):
         numpy array [N x winlen], where N is the number of windows that fit
         in the input signal
     """
-    n_windows = len(samples)//(winlen - winshift) - 1
-    frames = np.asarray([samples[i*winshift:winlen+i*winshift]
-                        for i in range(n_windows)], dtype=np.float32)
-    return frames
 
+    ls = []
+    for i in range(0, len(samples)//winlen*winlen, winshift):
+        if i+winlen > len(samples):
+            break
+        ls.append(samples[i:i+winlen])
 
-def preemp(inp, p=0.97):
+    return np.array(ls)
+
+def preemp(input, p=0.97):
     """
     Pre-emphasis filter.
 
     Args:
-        inp: array of speech frames [N x M] where N is the number of frames and
+        input: array of speech frames [N x M] where N is the number of frames and
                M the samples per frame
         p: preemhasis factor (defaults to the value specified in the exercise)
 
@@ -165,72 +221,108 @@ def preemp(inp, p=0.97):
         output: array of pre-emphasised speech samples
     Note (you can use the function lfilter from scipy.signal)
     """
-    b = np.array([1., -p], inp.dtype)
-    a = np.array([1.], inp.dtype)
-    return lfilter(b, a, inp)
+    # Attention a mettre une virgule dans la creation du tableau b !!!!
+    return lfilter([1, -p], [1], input)
 
 
-def windowing(inp):
+def windowing(input):
     """
     Applies hamming window to the input frames.
 
     Args:
-        inp: array of speech samples [N x M] where N is the number of frames and
+        input: array of speech samples [N x M] where N is the number of frames and
                M the samples per frame
     Output:
         array of windoed speech samples [N x M]
-    Note (you can use the function hamming from scipy.signal, include the
-    sym=0 option if you want to get the same results as in the example)
+    Note (you can use the function hamming from scipy.signal, include the sym=0 option
+    if you want to get the same results as in the example)
     """
-    return inp*hamming(inp.shape[1], sym=0)
+    N, M = input.shape
+    window = hamming(M, sym=False)
+    return (input * window)
 
-
-def powerSpectrum(inp, nfft):
+def powerSpectrum(input, nfft):
     """
     Calculates the power spectrum of the input signal, that is the square of the modulus of the FFT
 
     Args:
-        inp: array of speech samples [N x M] where N is the number of frames and
+        input: array of speech samples [N x M] where N is the number of frames and
                M the samples per frame
         nfft: length of the FFT
     Output:
         array of power spectra [N x nfft]
     Note: you can use the function fft from scipy.fftpack
     """
-    x = fft(inp, nfft)
-    return x.real**2 + x.imag**2
+    freq = fft(input, nfft)
+    return freq.real**2 + freq.imag**2
 
 
-def logMelSpectrum(inp, samplingrate):
+def logMelSpectrum(input, samplingrate):
     """
     Calculates the log output of a Mel filterbank when the input is the power spectrum
 
     Args:
-        inp: array of power spectrum coefficients [N x nfft] where N is the number of frames and
+        input: array of power spectrum coefficients [N x nfft] where N is the number of frames and
                nfft the length of each spectrum
-        samplingrate: sampling rate of the original signal (used to calculate the filterbank shapes)
+        samplingrate: sampling rate of the original signal (used to calculate the filterbanks)
     Output:
         array of Mel filterbank log outputs [N x nmelfilters] where nmelfilters is the number
         of filters in the filterbank
     Note: use the trfbank function provided in tools.py to calculate the filterbank shapes and
           nmelfilters
     """
-    return np.log10(np.dot(inp, trfbank(samplingrate, inp.shape[1]).T))
+    N, nfft = input.shape
+    flt = trfbank(samplingrate, nfft)
+    return np.log(np.dot(input, flt.transpose())), flt
 
 
-def cepstrum(inp, nceps):
+def cepstrum(input, nceps, all=False):
     """
     Calulates Cepstral coefficients from mel spectrum applying Discrete Cosine Transform
 
     Args:
-        inp: array of log outputs of Mel scale filterbank [N x nmelfilters] where N is the
+        input: array of log outputs of Mel scale filterbank [N x nmelfilters] where N is the
                number of frames and nmelfilters the length of the filterbank
         nceps: number of output cepstral coefficients
     Output:
         array of Cepstral coefficients [N x nceps]
     Note: you can use the function dct from scipy.fftpack.realtransforms
     """
-    return dct(inp, type=2, norm='ortho', axis=-1)[:, :nceps]
+    if all:
+        return dct(input, norm='ortho')
+    else:
+        return dct(input, norm='ortho')[:, 0:nceps]
+
+
+def lifter(mfcc, lifter=22):
+    """
+    Applies liftering to improve the relative range of MFCC coefficients.
+       mfcc: NxM matrix where N is the number of frames and M the number of MFCC coefficients
+       lifter: lifering coefficient
+    Returns:
+       NxM array with lifeterd coefficients
+    """
+    nframes, nceps = mfcc.shape
+    cepwin = 1.0 + lifter/2.0 * np.sin(np.pi * np.arange(nceps) / lifter)
+    return np.multiply(mfcc, np.tile(cepwin, nframes).reshape((nframes,nceps)))
+
+
+def icepstrum(inp):
+    return idct(inp, norm='ortho')
+
+
+def imelspectrum_l2(inp, mel_weights):
+    # print(np.isnan(inp).any(), np.isnan(mel_weights).any())
+    # print(np.argwhere(np.isnan(inp)))
+    print(inp.shape, mel_weights[:inp.shape[1]+1,:].shape)
+    return abs(lstsq(mel_weights[:inp.shape[1],:], inp.T)[0].T)
+
+def imelspectrum_l1(inp, mel_weights): #NOT WORKING
+    return linprog(inp, method='interior-point')
+
+
+def denoise(b, a, y):
+    return lfilter(b, a, y)
 
 
 def euclidean_distance(a, b):
