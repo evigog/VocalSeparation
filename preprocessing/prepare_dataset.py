@@ -1,13 +1,16 @@
 from preprocessing.prep_tools import *
 from scipy.io import wavfile
 from preprocessing.Parameters import *
+from constants import *
+
 import os
+import random as rand
 
 
 def load_dataset(n_samples):
     cache_path = '/Users/evi/Documents/KTH_ML/Period_4/Speech_Recognition/Project/temp'
     cache_filename = 'data_train.npz'
-    path_dataset = 'dataset/Wavfile'  # all songs are sampled at 16kHz
+    path_dataset = 'data/Wavfile'  # all songs are sampled at 16kHz
 
     if not os.path.isfile(cache_path + str(n_samples) + cache_filename):
         samples = [wavfile.read(os.path.join(path_dataset, f))[1] for f in os.listdir(path_dataset)
@@ -42,6 +45,39 @@ def load_dataset(n_samples):
     np.save('coefficients/batch_vc4', batch_vc)
 
     return samples, batch_mixed, batch_bg, batch_vc
+
+
+
+#split dataset into training and testing
+#create /train and /test subfolders inside folder data/Wavfile
+def split_dataset():
+    path_dataset = '../data/Wavfile'
+    filenames = os.listdir(path_dataset) #names of all .wav files
+    rand.seed(230)
+    rand.shuffle(filenames)  # shuffles the ordering of filenames (deterministic given the chosen seed)
+
+    split_1 = int(TRAINING_SPLIT * len(filenames))  #training set
+    train_filenames = filenames[:split_1]
+    test_filenames = filenames[split_1:]
+
+    # no validation set used!
+    # split_2 = int((1 - TRAINING_SPLIT) * len(filenames))
+    # dev_filenames = filenames[split_1:split_2]
+
+    train_path = os.path.join(path_dataset, 'train')
+    test_path = os.path.join(path_dataset, 'test')
+    if not os.path.exists(train_path):
+        os.makedirs(train_path)
+    if not os.path.exists(test_path):
+        os.makedirs(test_path)
+
+    #move training files to data/Wavefile/train folder
+    for f in train_filenames:
+      os.rename(os.path.join(path_dataset, f), os.path.join(train_path, f))
+
+    # move training files to data/Wavefile/test folder
+    for f in test_filenames:
+        os.rename(os.path.join(path_dataset, f), os.path.join(test_path, f))
 
 #take care of nan or inf values
 def remove_dirty(data):
@@ -87,6 +123,6 @@ def batch_to_coef(batches, original_frames):  #output shape: (num_frames, num_co
    return without_padding
 
 
-
+split_dataset()
 
 

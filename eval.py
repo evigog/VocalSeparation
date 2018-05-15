@@ -1,18 +1,21 @@
 import network
 from constants import *
-import numpy as np
-import data
+from preprocessing.prep_tools import  read_wavfile
+
 import tensorflow as tf
 import argparse
-import os
-import shutil
+import mir_eval  #for evaluating the constracted voice
+
 
 def loadSong():
-    X, Y = 0, 0
+    #load song from data/wavefile/test
+    # (X, Y) <- convert song to batch batcoefficients
+
+
     return X, Y
 
 
-def train():
+def predict():
     net = network.RNN_network()
 
     print("Start eval")
@@ -20,16 +23,34 @@ def train():
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
 
-        net.load_state(sess, CKPT_PATH)
+        net.load_state(sess, CKPT_PATH) #load trained model
 
         X, Y = loadSong()
 
-        _output = sess.run(
+        predictions = sess.run(  #coefficients that correspond to voice
             [net()],
             feed_dict={
                 net.batchX_placeholder:X,
                 net.batchY_placeholder:Y
             })
+
+    #restore the coefficients from network output(batch_to_coef function)
+    #restore song from coefficients
+    #call evaluate_voice: returns a dict of evaluation metrics
+
+
+
+
+#reference_voice, predicted_voice are the source signals (ndarrays of samples)
+def evaluate_voice(reference_voice, predicted_voice):
+
+    sdr, sir, sar, perm = mir_eval.separation.bss_eval_sources(reference_voice, predicted_voice)
+
+    eval = {'sdr':sdr, 'sir':sir, 'sar':sar, 'perm':perm}
+
+    return eval
+
+
 
 
 if __name__ == '__main__':
@@ -37,4 +58,4 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    train()
+    predict()
