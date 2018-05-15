@@ -2,7 +2,7 @@
 
 class Preprocessing:
     MAX_TIME = 4
-    NCEPS = 13
+    NCEPS = 40
     NMELS = 40
     PREEMPCOEFF = 0.97
     FS = 16000
@@ -17,3 +17,4 @@ class Preprocessing:
 
 class Postprocessing:
     DENOISE_FACTOR = 5  # the larger it is, the smoother curve will be
+    GRIFFIN_LIM_ITE = 277

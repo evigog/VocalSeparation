@@ -1,12 +1,14 @@
 import numpy as np
-from scipy.signal import lfilter, hamming, stft
+from scipy.signal import lfilter, hamming, stft, istft
 from scipy.fftpack import fft, dct, idct
 from scipy.optimize import linprog
 from scipy.linalg import lstsq
 import wave
 import array
 from scipy.io import wavfile
+
 from Parameters import *
+from audio_utilities import reconstruct_signal_griffin_lim
 
 
 def read_wavfile(wav_filename, channel='mixed'):
@@ -29,8 +31,104 @@ def read_wavfile(wav_filename, channel='mixed'):
     return samples
 
 
+def wav_to_mfcc(wav_filename, channel='mixed'):
+    """Convert a WAV audio signal to MFCC and Mel Spectrum 2D numpy arrays.
+
+    Args:
+        wav_filename (path): The WAV audio signal to convert.
+        channel (str): The audio channel selected.
+    Outputs:
+        mfccs (2D numpy array): The MFCCs [n_windows, n_ceps] of the selected mono audio signal.
+        mels (2D numpy array): The Mel Spectrum [n_windows, n_mels] of the selected mono audio signal.
+    """
+    samples = read_wavfile(wav_filename, channel)
+    mfccs, mspec, mweights = mfcc(samples)
+    return mfccs, mspec, mweights
+
+
+def mfcc_to_wav(mfccs, mel_weights):
+    """Convert an MFCC 2D numpy array to a time series audio signal.
+
+    Args:
+        mfccs (2D numpy array): The MFCCs [nfft//2 + 1, n_windows] to convert.
+    Outputs:
+        wav (1D numpy array):  The reconstructed mono audio signal.
+    """
+    melspec = np.exp(icepstrum(mfccs))
+    # option A: l2-norm
+    pow_spec = imelspectrum_l2(melspec, mel_weights)
+    # option B: l1-norm
+    # mag_spec = imelspectrum_l1(rec_mspec, mel_weights)
+    mag_spec = np.sqrt(pow_spec)[:, :Preprocessing.NFFT//2 + 1]
+    wav = reconstruct_signal_griffin_lim(mag_spec,
+                                         Preprocessing.NFFT,
+                                         Preprocessing.WINSHIFT,
+                                         Postprocessing.GRIFFIN_LIM_ITE)
+    assert not np.isnan(wav).any()
+    # The output signal must be in the range [-1, 1], otherwise we need to clip or normalize.
+    max_sample = np.max(abs(wav))
+    if max_sample > 1.0:
+        wav = wav / max_sample
+    return wav
+
+
+def mspec_to_wav(logmspec, mel_weights):
+    """Convert a (log) Mel Spectrum 2D numpy array to a time series audio signal.
+
+    Args:
+        mspec (2D numpy array): The (log) Mel Spectrum [n_mels, n_windows] to convert.
+    Outputs:
+        wav (1D numpy array):  The reconstructed mono audio signal.
+    """
+    # option A: l2-norm
+    pow_spec = imelspectrum_l2(np.exp(logmspec), mel_weights)
+    # option B: l1-norm
+    # mag_spec = imelspectrum_l1(rec_mspec, mel_weights)
+    mag_spec = np.sqrt(pow_spec)[:, :Preprocessing.NFFT//2 + 1]
+    wav = reconstruct_signal_griffin_lim(mag_spec,
+                                         Preprocessing.NFFT,
+                                         Preprocessing.WINSHIFT,
+                                         Postprocessing.GRIFFIN_LIM_ITE)
+    assert not np.isnan(wav).any()
+    # The output signal must be in the range [-1, 1], otherwise we need to clip or normalize.
+    max_sample = np.max(abs(wav))
+    if max_sample > 1.0:
+        wav = wav / max_sample
+    return wav
+
+
+def mfcc(samples, winlen=Preprocessing.WINLEN, winshift=Preprocessing.WINSHIFT,
+            preempcoeff=Preprocessing.PREEMPCOEFF, nfft=Preprocessing.NFFT, nceps=Preprocessing.NCEPS,
+            samplingrate=Preprocessing.FS, liftercoeff=22, with_lifter=False):
+    """Computes Mel Frequency Cepstrum Coefficients.
+
+    Args:
+        samples: array of speech samples with shape (N,)
+        winlen: lenght of the analysis window
+        winshift: number of samples to shift the analysis window at every time step
+        preempcoeff: pre-emphasis coefficient
+        nfft: length of the Fast Fourier Transform (power of 2, >= winlen)
+        nceps: number of cepstrum coefficients to compute
+        samplingrate: sampling rate of the original signal
+        liftercoeff: liftering coefficient used to equalise scale of MFCCs
+
+    Returns:
+        N x nceps array with lifetered MFCC coefficients
+    """
+    frames = enframe(samples, winlen, winshift)
+    preemph = preemp(frames, preempcoeff)
+    windowed = windowing(preemph)
+    spec = powerSpectrum(windowed, nfft)
+    mspec, mweights = logMelSpectrum(spec, samplingrate)
+    ceps = cepstrum(mspec, nceps)
+    if with_lifter:
+        return lifter(ceps, liftercoeff), mspec, mweights
+    else:
+        return ceps, mspec, mweights
+
+
 def wav_to_stft(wav_filename, channel='mixed'):
-    """Convert a WAV audio signal to a STFT magnitude-only 2D numpy array.
+    """Convert a WAV audio signal to its STFT (magnitude-only!) 2D numpy array.
 
     Args:
         wav_filename (path): The filename of the WAV audio signal to convert.
@@ -53,21 +151,33 @@ def wav_to_stft(wav_filename, channel='mixed'):
     return Zxx
 
 
-def wav_to_mfcc(wav_filename, channel='mixed'):
-    """Convert a WAV audio signal to its MFCC 2D numpy array.
+def stft_to_wav(Zxx):
+    """Convert an STFT (magnitude-only!) 2D numpy array to a time series audio signal.
 
     Args:
-        wav_filename (path): The WAV audio signal to convert.
-        channel (str): The audio channel selected.
+        Zxx (2D numpy array): The STFT [nfft//2 + 1, n_windows] to convert.
     Outputs:
-        Zxx (2D numpy array): The MFCCs of the selected mono audio signal.
+        wav (1D numpy array):  The reconstructed mono audio signal.
     """
-    samples = read_wavfile(wav_filename, channel)
-    mfccs, mspec = mfcc(samples)
-    return mfccs, mspec
+    times, wav = istft(Zxx,
+                       fs=Preprocessing.FS,
+                       window=Preprocessing.WINDOW,
+                       nperseg=Preprocessing.WINLEN,
+                       noverlap=Preprocessing.WINSHIFT,
+                       nfft=Preprocessing.NFFT,
+                       input_onesided=Preprocessing.ONESIDED,
+                       boundary=Preprocessing.BOUNDARY,
+                       time_axis=-1,
+                       freq_axis=-2)
+    assert not np.isnan(wav).any()
+    # The output signal must be in the range [-1, 1], otherwise we need to clip or normalize.
+    max_sample = np.max(abs(wav))
+    if max_sample > 1.0:
+        wav = wav / max_sample
+    return wav
 
 
-def save_audio_to_file(x, sample_rate=Preprocessing.FS, filename='out.wav'):
+def save_audio_to_file(x, filename='out.wav', sample_rate=Preprocessing.FS):
     """Save a mono signal to a file.
 
     Args:
@@ -156,36 +266,6 @@ def trfbank(fs, nfft, lowfreq=133.33, linsc=200/3., logsc=1.0711703, nlinfilt=13
         fbank[i][rid] = rslope * (hi - nfreqs[rid])
 
     return fbank
-
-
-def mfcc(samples, winlen=Preprocessing.WINLEN, winshift=Preprocessing.WINSHIFT,
-            preempcoeff=0.97, nfft=Preprocessing.NFFT, nceps=13,
-            samplingrate=Preprocessing.FS, liftercoeff=22, with_lifter=False):
-    """Computes Mel Frequency Cepstrum Coefficients.
-
-    Args:
-        samples: array of speech samples with shape (N,)
-        winlen: lenght of the analysis window
-        winshift: number of samples to shift the analysis window at every time step
-        preempcoeff: pre-emphasis coefficient
-        nfft: length of the Fast Fourier Transform (power of 2, >= winlen)
-        nceps: number of cepstrum coefficients to compute
-        samplingrate: sampling rate of the original signal
-        liftercoeff: liftering coefficient used to equalise scale of MFCCs
-
-    Returns:
-        N x nceps array with lifetered MFCC coefficients
-    """
-    frames = enframe(samples, winlen, winshift)
-    preemph = preemp(frames, preempcoeff)
-    windowed = windowing(preemph)
-    spec = powerSpectrum(windowed, nfft)
-    mspec = logMelSpectrum(spec, samplingrate)[0]
-    ceps = cepstrum(mspec, nceps)
-    if with_lifter:
-        return lifter(ceps, liftercoeff), mspec
-    else:
-        return ceps, mspec
 
 
 def enframe(samples, winlen, winshift):
@@ -314,14 +394,14 @@ def icepstrum(inp):
 def imelspectrum_l2(inp, mel_weights):
     # print(np.isnan(inp).any(), np.isnan(mel_weights).any())
     # print(np.argwhere(np.isnan(inp)))
-    print(inp.shape, mel_weights[:inp.shape[1]+1,:].shape)
+    # print(inp.shape, mel_weights[:inp.shape[1]+1,:].shape)
     return abs(lstsq(mel_weights[:inp.shape[1],:], inp.T)[0].T)
 
 def imelspectrum_l1(inp, mel_weights): #NOT WORKING
     return linprog(inp, method='interior-point')
 
 
-def denoise(b, a, y):
+def denoise(y, b=[1.0/Postprocessing.DENOISE_FACTOR]*Postprocessing.DENOISE_FACTOR, a=1):
     return lfilter(b, a, y)
 
 
