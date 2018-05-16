@@ -1,6 +1,6 @@
 *.npz
-/checkpoint/
-/.idea/
+checkpoint/
+.idea/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
