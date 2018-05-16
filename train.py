@@ -16,7 +16,7 @@ def train(verbose):
 
     losses = []
 
-    optimizer = tf.train.AdagradOptimizer(learning_rate).minimize(total_loss)
+    optimizer = tf.train.AdamOptimizer(learning_rate).minimize(total_loss)
 
     with tf.Session() as sess:
         t0 = time.time()
@@ -46,8 +46,8 @@ def train(verbose):
                 if verbose == 1:
                     print("batch_loss:", _total_loss)
 
-            if epoch_idx % 5 == 0:
-                tf.train.Saver().save(sess, CKPT_PATH, global_step=epoch_idx)
+            # if epoch_idx % 5 == 0:
+            #     tf.train.Saver().save(sess, CKPT_PATH, global_step=epoch_idx)
 
             t1 = time.time()
             print("epoch: " + repr(epoch_idx) + " || loss_epoch: " + repr(loss_epoch) + " ||", end=' ')
