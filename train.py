@@ -41,7 +41,6 @@ def train(verbose):
                         net.batchX_placeholder:X[idx[i]],
                         net.batchY_placeholder:Y[idx[i]]
                     })
-
                 loss_epoch += _total_loss
                 if verbose == 1:
                     print("batch_loss:", _total_loss)

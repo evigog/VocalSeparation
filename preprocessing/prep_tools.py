@@ -151,7 +151,7 @@ def wav_to_stft(wav_filename, channel='mixed'):
                              boundary=Preprocessing.BOUNDARY,
                              padded=Preprocessing.PADDED,
                              axis=-1)
-    return Zxx.T
+    return np.absolute(Zxx).T
 
 
 def stft_to_wav(Zxx):
