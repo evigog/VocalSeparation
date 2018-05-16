@@ -7,8 +7,8 @@ import wave
 import array
 from scipy.io import wavfile
 
-from Parameters import *
-from audio_utilities import reconstruct_signal_griffin_lim
+from .Parameters import *
+from .audio_utilities import reconstruct_signal_griffin_lim
 
 
 def read_wavfile(wav_filename, channel='mixed'):
