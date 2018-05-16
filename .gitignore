@@ -1,6 +1,6 @@
 *.npz
-./coefficients/
-./.idea/
+coefficients/
+.idea/
 
 
 # Byte-compiled / optimized / DLL files
