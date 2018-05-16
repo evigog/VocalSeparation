@@ -1,16 +1,32 @@
 import network
 from constants import *
-from preprocessing.prep_tools import  read_wavfile
+from preprocessing.prep_tools import  *
+from preprocessing.prepare_dataset import coef_to_batch, batch_to_coef
 
 import tensorflow as tf
 import argparse
 import mir_eval  #for evaluating the constracted voice
+import os
+import numpy as np
 
 
 def loadSong():
     #load song from data/wavefile/test
-    # (X, Y) <- convert song to batch batcoefficients
+    test_path = 'data/Wavfile/test'
+    test_filenames = os.listdir(test_path)
 
+    print('Choose a random song for testing')
+    indx = np.random.randint(0, len(test_filenames)-1)  #take a random test song
+
+    song_filename = os.path.join(test_path, test_filenames[indx])
+
+    song_stft_mixed = wav_to_stft(song_filename, channel='mixed')
+    batches_stft_mixed = coef_to_batch(song_stft_mixed)
+
+    X = batches_stft_mixed #input features to network
+    Y = read_wavfile(song_filename, channel='vocals')
+
+    print('input to network is ready!')
 
     return X, Y
 
@@ -58,4 +74,4 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    predict()
+    loadSong()
