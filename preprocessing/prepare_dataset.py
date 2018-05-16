@@ -1,41 +1,52 @@
-from prep_tools import *
-from Parameters import *
+from preprocessing.prep_tools import *
+from preprocessing.Parameters import *
 from constants import *
 
 import os
 import random as rand
 
 
-def load_dataset(n_samples):
-    path_dataset = '../data/Wavfile'  # all songs are sampled at 16kHz
-    if not os.path.isfile('../coefficients/batch_stft.npz'):
+#load_path: train or test  (folder of .wav files to process)
+#n_samples: number of .wav files to process
+def load_dataset(load_path, n_samples):
+
+    path_dataset = '../data/Wavfile' + '/' + load_path # all songs are sampled at 16kHz
+    if not os.path.isfile('../coefficients/batch_stft_%s.npz' %load_path):
         filenames = [os.path.join(path_dataset, f) for f in os.listdir(path_dataset)
                     if os.path.isfile(os.path.join(path_dataset, f))][:n_samples]
+
         # Not efficient, it's better to load all the files at once
+
+        #produce Short Time Fourier Transform
         stft_mixed = [wav_to_stft(f, channel='mixed') for f in filenames]
         stft_bg = [wav_to_stft(f, channel='instrumental') for f in filenames]
         stft_vc = [wav_to_stft(f, channel='vocals') for f in filenames]
+
+        #produce MFCC coefficients
         mfcc_mixed = [wav_to_mfcc(f, channel='mixed')[0] for f in filenames]
         mfcc_bg = [wav_to_mfcc(f, channel='instrumental')[0] for f in filenames]
         mfcc_vc = [wav_to_mfcc(f, channel='vocals')[0] for f in filenames]
 
-        np.savez_compressed('../coefficients/stft.npz', mixed=stft_mixed ,bg=stft_bg, vc=stft_vc)
-        np.savez_compressed('../coefficients/mfcc.npz', mixed=mfcc_mixed ,bg=mfcc_bg, vc=mfcc_vc)
+        np.savez_compressed('../coefficients/stft_%s.npz' %load_path, mixed=stft_mixed ,bg=stft_bg, vc=stft_vc)
+        np.savez_compressed('../coefficients/mfcc_%s.npz' %load_path, mixed=mfcc_mixed ,bg=mfcc_bg, vc=mfcc_vc)
 
         #split coef matrices into batches
+
+        #STFT
         batch_stft_mixed = [coef_to_batch(src_mixed) for src_mixed in stft_mixed]
         batch_stft_bg = [coef_to_batch(src_bg) for src_bg in stft_bg]
         batch_stft_vc = [coef_to_batch(src_vc) for src_vc in stft_vc]
+        #MFCC
         batch_mfcc_mixed = [coef_to_batch(src_mixed) for src_mixed in mfcc_mixed]
         batch_mfcc_bg = [coef_to_batch(src_bg) for src_bg in mfcc_bg]
         batch_mfcc_vc = [coef_to_batch(src_vc) for src_vc in mfcc_vc]
 
-        np.savez_compressed('../coefficients/batch_stft.npz', mixed=batch_stft_mixed ,bg=batch_stft_bg, vc=batch_stft_vc)
-        np.savez_compressed('../coefficients/batch_mfcc.npz', mixed=batch_mfcc_mixed ,bg=batch_mfcc_bg, vc=batch_mfcc_vc)
+        np.savez_compressed('../coefficients/batch_stft_%s.npz' %load_path, mixed=batch_stft_mixed ,bg=batch_stft_bg, vc=batch_stft_vc)
+        np.savez_compressed('../coefficients/batch_mfcc_%s.npz' %load_path, mixed=batch_mfcc_mixed ,bg=batch_mfcc_bg, vc=batch_mfcc_vc)
         print('Saved coefficients.')
 
-    batch_stft = np.load('../coefficients/batch_stft.npz')
-    batch_mfcc = np.load('../coefficients/batch_mfcc.npz')
+    batch_stft = np.load('../coefficients/batch_stft_%s.npz' %load_path)
+    batch_mfcc = np.load('../coefficients/batch_mfcc_%s.npz' %load_path)
 
     return batch_stft, batch_mfcc
 
@@ -113,3 +124,5 @@ def batch_to_coef(batches, original_frames=409):  #output shape: (num_frames, nu
 
    # return without_padding   DISCUSS 16/05/2018
    return coefs
+
+
