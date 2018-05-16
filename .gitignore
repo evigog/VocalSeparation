@@ -1,5 +1,6 @@
-dataset/
-data/temp/
+*.npz
+/checkpoint/
+/.idea/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
