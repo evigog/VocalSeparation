@@ -1,4 +1,5 @@
 import numpy as np
 
 def load_batch():
-    return np.load('dataset/batch_mixed4.npy'), np.load('dataset/batch_vc4.npy')
+    temp = np.load('coefficients/batch_stft_train.npz')
+    return temp["mixed"].tolist(), temp["vc"].tolist()

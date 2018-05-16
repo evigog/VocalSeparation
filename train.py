@@ -8,15 +8,6 @@ import os
 import shutil
 import time
 
-def getBatch(X, Y):
-    X, Y = unison_shuffle(X.T, Y.T)
-    return X.T, Y.T
-
-def unison_shuffle(a, b):
-    assert len(a) == len(b)
-    p = np.random.permutation(len(a))
-    return a[p], b[p]
-
 def train(verbose):
     X, Y = data.load_batch()
 
@@ -33,17 +24,22 @@ def train(verbose):
 
         net.load_state(sess, CKPT_PATH)
 
+        n_batch = len(X)
+
+        idx = list(range(n_batch))
+
         for epoch_idx in range(num_epochs):
-            batchX, batchY = getBatch(X, Y)
+
+            np.random.shuffle(idx)
 
             loss_epoch = 0
 
-            for i in range(len(batchX)):
+            for i in range(n_batch):
                 _total_loss, _train_step, _output = sess.run(
                     [total_loss, optimizer, net()],
                     feed_dict={
-                        net.batchX_placeholder:batchX[i],
-                        net.batchY_placeholder:batchY[i]
+                        net.batchX_placeholder:X[idx[i]],
+                        net.batchY_placeholder:Y[idx[i]]
                     })
 
                 loss_epoch += _total_loss
