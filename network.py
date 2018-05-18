@@ -23,7 +23,13 @@ class RNN_network:
         output_rnn, self.current_state = tf.nn.dynamic_rnn(cell, self.batchX_placeholder, dtype=tf.float32)
 
         input_size = self.shape(self.batchX_placeholder)[2]
-        output = tf.layers.dense(inputs=output_rnn, units=input_size, activation=tf.nn.relu)
+        # Dense Layer for the dropout
+        dense = tf.layers.dense(inputs=output_rnn, units= input_size, activation=tf.nn.relu,
+                                activity_regularizer=tf.contrib.layers.l2_regularizer(regularizer_rate))
+        dropout = tf.layers.dropout(
+            inputs=dense, rate=dropout_rate)  
+
+        output = tf.layers.dense(inputs=dropout, units=input_size, activation=tf.nn.relu)
         return output
 
     def loss(self):

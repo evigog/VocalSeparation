@@ -7,6 +7,7 @@ import argparse
 import os
 import shutil
 import time
+from tensorflow.core.protobuf import config_pb2
 
 def train(verbose):
     X, Y = data.load_batch()
@@ -16,11 +17,16 @@ def train(verbose):
 
     losses = []
 
-    optimizer = tf.train.AdamOptimizer(learning_rate).minimize(total_loss)
+    #adaptive learning rate
+    global_step = tf.Variable(0, trainable=False)
+    adaptive_learning_rate = tf.train.exponential_decay(learning_rate_init, global_step, 100, learning_decay, staircase=True)
+    optimizer = tf.train.AdamOptimizer(adaptive_learning_rate).minimize(total_loss)
 
+    run_options = tf.RunOptions(report_tensor_allocations_upon_oom = True)
     with tf.Session() as sess:
+
         t0 = time.time()
-        sess.run(tf.global_variables_initializer())
+        sess.run(tf.global_variables_initializer(), options=run_options)
 
         net.load_state(sess, CKPT_PATH)
 
@@ -42,18 +48,21 @@ def train(verbose):
                         net.batchY_placeholder:Y[idx[i]]
                     })
                 loss_epoch += _total_loss
-                if verbose == 1:
-                    print("batch_loss:", _total_loss)
+                #if verbose == 1:
+                	#print("batch_loss:", _total_loss)
 
             # if epoch_idx % 5 == 0:
             #     tf.train.Saver().save(sess, CKPT_PATH, global_step=epoch_idx)
 
+	    #compute diff with loss in last epoch
+            if epoch_idx > 0:
+            	diff = (losses[-1]- loss_epoch) / 100 
+            	print("loss diff with last epoch: ", diff) 
             t1 = time.time()
             print("epoch: " + repr(epoch_idx) + " || loss_epoch: " + repr(loss_epoch) + " ||", end=' ')
             timer(t0, t1)
             losses.append(loss_epoch)
         tf.train.Saver().save(sess, SAVE_PATH + "/" + repr(time.time()) + "/" + "save.ckpt")
-
 
     print("finished.")
     losses = np.array(losses)
