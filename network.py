@@ -24,8 +24,8 @@ class RNN_network:
 
         input_size = self.shape(self.batchX_placeholder)[2]
         # Dense Layer for the dropout
-        dense = tf.layers.dense(inputs=output_rnn, units= input_size, activation=tf.nn.relu,
-                                activity_regularizer=tf.contrib.layers.l2_regularizer(regularizer_rate))
+        dense = tf.layers.dense(inputs=output_rnn, units= input_size, activation=tf.nn.relu)
+                                #activity_regularizer=tf.contrib.layers.l2_regularizer(regularizer_rate))
         dropout = tf.layers.dropout(
             inputs=dense, rate=dropout_rate)  
 

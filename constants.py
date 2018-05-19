@@ -6,10 +6,10 @@ time_max = 4
 learning_rate = 0.01
 hidden_size = 256
 n_layer = 3
-learning_rate_init = 0.1
+learning_rate_init = 0.01
 learning_decay = 0.95
-dropout_rate = 0.1   #drops out dropout_rate % of units
-regularizer_rate = 0.5
+dropout_rate = 0.4   #drops out dropout_rate % of units
+#regularizer_rate = 0.5
 
 #paths
 CKPT_PATH = "checkpoints/"
