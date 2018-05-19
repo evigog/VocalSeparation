@@ -36,10 +36,15 @@ def create_dataset(load_path, n_files):
 
         # Not efficient, it's better to load all the files at once
 
-        #produce Short Time Fourier Transform - returns a list (magnitude, phase)
+        #produce Short Time Fourier Transform - returns a list of lists (magnitude, phase)
         stft_mixed = [wav_to_stft(f, channel='mixed') for f in filenames]
         stft_bg = [wav_to_stft(f, channel='instrumental') for f in filenames]
         stft_vc = [wav_to_stft(f, channel='vocals') for f in filenames]
+
+        ###normalization step
+        stft_mixed_norm = [np.divide(src_mixed[0],100) for src_mixed in stft_mixed]
+        stft_bg_norm = [np.divide(src_bg[0], 100) for src_bg in stft_bg]
+        stft_vc_norm = [np.divide(src_vc[0], 100) for src_vc in stft_vc]
 
         #produce MFCC coefficients
         mfcc_mixed = [wav_to_mfcc(f, channel='mixed')[0] for f in filenames]
@@ -47,15 +52,22 @@ def create_dataset(load_path, n_files):
         mfcc_vc = [wav_to_mfcc(f, channel='vocals')[0] for f in filenames]
 
         #save only the magnitude (stft)
-        np.savez_compressed('coefficients/stft_%s.npz' %load_path, mixed=stft_mixed[0] ,bg=stft_bg[0], vc=stft_vc[0])
+        np.savez_compressed('coefficients/stft_%s.npz' %load_path, mixed=stft_mixed ,bg=stft_bg, vc=stft_vc)
         np.savez_compressed('coefficients/mfcc_%s.npz' %load_path, mixed=mfcc_mixed ,bg=mfcc_bg, vc=mfcc_vc)
 
         #split coef matrices into batches
 
-        #STFT
-        batch_stft_mixed = [coef_to_batch(src_mixed) for src_mixed in stft_mixed[0]]
-        batch_stft_bg = [coef_to_batch(src_bg) for src_bg in stft_bg[0]]
-        batch_stft_vc = [coef_to_batch(src_vc) for src_vc in stft_vc[0]]
+        #STFT - no normalization
+        #batch_stft_mixed = [coef_to_batch(src_mixed[0]) for src_mixed in stft_mixed]
+        #batch_stft_bg = [coef_to_batch(src_bg[0]) for src_bg in stft_bg]
+        #batch_stft_vc = [coef_to_batch(src_vc[0]) for src_vc in stft_vc]
+
+        #STFT - with normalization
+        batch_stft_mixed = [coef_to_batch(src_mixed) for src_mixed in stft_mixed_norm]
+        batch_stft_bg = [coef_to_batch(src_bg) for src_bg in  stft_bg_norm]
+        batch_stft_vc = [coef_to_batch(src_vc) for src_vc in stft_vc_norm]
+
+
         #MFCC
         batch_mfcc_mixed = [coef_to_batch(src_mixed) for src_mixed in mfcc_mixed]
         batch_mfcc_bg = [coef_to_batch(src_bg) for src_bg in mfcc_bg]

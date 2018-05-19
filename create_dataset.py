@@ -1,3 +1,3 @@
 from preprocessing import *
 
-create_all_dataset(3)
+create_all_dataset(1000)
