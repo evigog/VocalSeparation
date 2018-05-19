@@ -51,8 +51,8 @@ def train(verbose):
                 #if verbose == 1:
                 	#print("batch_loss:", _total_loss)
 
-            # if epoch_idx % 5 == 0:
-            #     tf.train.Saver().save(sess, CKPT_PATH, global_step=epoch_idx)
+            if epoch_idx % 5 == 0:
+                 tf.train.Saver().save(sess, CKPT_PATH, global_step=epoch_idx)
 
 	    #compute diff with loss in last epoch
             if epoch_idx > 0:

@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.signal import lfilter, hamming, stft, istft
+from scipy.signal import lfilter, hamming, stft, istft, check_COLA
 from scipy.fftpack import fft, dct, idct
 from scipy.optimize import linprog
 from scipy.linalg import lstsq
@@ -131,13 +131,14 @@ def mfcc(samples, winlen=Preprocessing.WINLEN, winshift=Preprocessing.WINSHIFT,
 
 
 def wav_to_stft(wav_filename, channel='mixed'):
-    """Convert a WAV audio signal to its STFT (magnitude-only!) 2D numpy array.
+    """Convert a WAV audio signal to its STFT  2D numpy array.
 
     Args:
         wav_filename (path): The filename of the WAV audio signal to convert.
         channel (str): The audio channel selected.
     Outputs:
         Zxx (2D numpy array): The STFT [nfft//2 + 1, n_windows] of the selected mono audio signal.
+        returns a list (magnitude, phase)
     """
     samples = read_wavfile(wav_filename, channel)
     freqs, times, Zxx = stft(samples,
@@ -150,11 +151,12 @@ def wav_to_stft(wav_filename, channel='mixed'):
                              return_onesided=Preprocessing.ONESIDED,
                              boundary=Preprocessing.BOUNDARY,
                              padded=Preprocessing.PADDED,
+
                              axis=-1)
-    return np.absolute(Zxx).T
+    return (np.absolute(Zxx).T, np.angle(Zxx).T)
 
 
-def stft_to_wav(Zxx):
+def stft_to_wav(Zxx_magn, Zxx_phase):
     """Convert an STFT (magnitude-only!) 2D numpy array to a time series audio signal.
 
     Args:
@@ -162,6 +164,13 @@ def stft_to_wav(Zxx):
     Outputs:
         wav (1D numpy array):  The reconstructed mono audio signal.
     """
+
+    #first construct spectrum from magnitude and phase
+    Zxx = get_spectrum(Zxx_magn, Zxx_phase)
+
+    #check if inversion of stft is possible!
+    print("inversion possible? ", check_COLA(Preprocessing.WINDOW, Preprocessing.WINLEN, Preprocessing.WINSHIFT))
+
     times, wav = istft(Zxx,
                        fs=Preprocessing.FS,
                        window=Preprocessing.WINDOW,
@@ -178,6 +187,17 @@ def stft_to_wav(Zxx):
     if max_sample > 1.0:
         wav = wav / max_sample
     return wav
+
+
+def get_spectrum(magnitudes, phases):
+    """Construct spectrum from magnitude and phase
+
+    Args:
+        magnitudes:
+        phases:
+    """
+    return magnitudes * np.exp(1.j * phases)
+
 
 
 def save_audio_to_file(x, filename='out.wav', sample_rate=Preprocessing.FS):

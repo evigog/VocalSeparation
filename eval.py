@@ -20,39 +20,53 @@ def loadSong():
 
     song_filename = os.path.join(test_path, test_filenames[indx])
 
-    song_stft_mixed = wav_to_stft(song_filename, channel='mixed')
-    batches_stft_mixed = coef_to_batch(song_stft_mixed)
+    #mixed signal
+    (song_stft_mixed_magn, song_stft_mixed_phase) = wav_to_stft(song_filename, channel='mixed')
+    batches_stft_mixed_magn = coef_to_batch(song_stft_mixed_magn)
 
-    X = batches_stft_mixed #input features to network
-    Y = read_wavfile(song_filename, channel='vocals')
+    #vocal signal
+    (song_stft_vocal_magn, song_stft_vocal_phase) = wav_to_stft(song_filename, channel='vocals')
+    batches_stft_vocal_magn = coef_to_batch(song_stft_vocal_magn)
+
+    X = batches_stft_mixed_magn #magnitude mixed coefficients in batches (network input)
+    Y = batches_stft_vocal_magn    #magnitude vocal coefficients in batches (network output)
+    original_vocal_wav = read_wavfile(song_filename, channel='vocals') #vocals wav
+
+    #save_audio_to_file(original_vocal_wav, "original.wav")
 
     print('input to network is ready!')
 
-    return X, Y
+    return X, Y, original_vocal_wav, song_stft_mixed_phase      #song_stft_mixed_phase
 
 
 def predict():
     net = network.RNN_network()
 
-    print("Start eval")
+    print("Start evaluation")
 
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
 
         net.load_state(sess, CKPT_PATH) #load trained model
 
-        X, Y = loadSong()
+        X, Y, original_vocals_wav, mixed_phase = loadSong()
 
-        predictions = sess.run(  #coefficients that correspond to voice
+        predict_vocal_magnitude_batch = sess.run(  #coefficients that correspond to voice (in a list)
             [net()],
             feed_dict={
                 net.batchX_placeholder:X,
                 net.batchY_placeholder:Y
             })
 
-    #restore the coefficients from network output(batch_to_coef function)
-    #restore song from coefficients
-    #call evaluate_voice: returns a dict of evaluation metrics
+    #restore the magnitude coefficients from network output(batch_to_coef function)
+    predict_coef_magn = batch_to_coef(predict_vocal_magnitude_batch[0])
+    #reconstruct wav signal
+    original_num_frames = mixed_phase.shape[0]  #remove padding
+    reconstructed_vocal = stft_to_wav(predict_coef_magn[0:original_num_frames], mixed_phase)
+    save_audio_to_file(reconstructed_vocal, "reconstruct.wav")
+    eval = evaluate_voice(original_vocals_wav, reconstructed_vocal)
+
+    print("sdr: ", eval["sdr"], " sir: ", eval["sir"], " sar: ", eval["sar"], " perm: ", eval["perm"])
 
 
 
@@ -74,4 +88,4 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    loadSong()
+    predict()
