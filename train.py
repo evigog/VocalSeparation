@@ -8,10 +8,11 @@ import os
 import shutil
 import time
 from tensorflow.core.protobuf import config_pb2
+from tensorflow.python.client import device_lib
 
 def train(verbose):
     X, Y = data.load_batch()
-
+    print("len of X ", len(X))
     net = network.RNN_network()
     total_loss = net.loss()
 
@@ -19,8 +20,8 @@ def train(verbose):
 
     #adaptive learning rate
     global_step = tf.Variable(0, trainable=False)
-    adaptive_learning_rate = tf.train.exponential_decay(learning_rate_init, global_step, 100, learning_decay, staircase=True)
-    optimizer = tf.train.AdamOptimizer(adaptive_learning_rate).minimize(total_loss)
+    adaptive_learning_rate = tf.train.exponential_decay(learning_rate_init, global_step, 500, learning_decay, staircase=True)
+    optimizer = tf.train.AdamOptimizer(adaptive_learning_rate).minimize(total_loss, global_step=global_step)
 
     run_options = tf.RunOptions(report_tensor_allocations_upon_oom = True)
     with tf.Session() as sess:
@@ -41,8 +42,8 @@ def train(verbose):
             loss_epoch = 0
 
             for i in range(n_batch):
-                _total_loss, _train_step, _output = sess.run(
-                    [total_loss, optimizer, net()],
+                _total_loss, _train_step = sess.run(
+                    [total_loss, optimizer],
                     feed_dict={
                         net.batchX_placeholder:X[idx[i]],
                         net.batchY_placeholder:Y[idx[i]]
@@ -92,6 +93,6 @@ if __name__ == '__main__':
     parser.add_argument('--verbose', default=0, help = "int, 1 if you want the batch loss else 0.", type = int)
 
     args = parser.parse_args()
-
+    print(device_lib.list_local_devices())
     setup_path(args.resume)
     train(args.verbose)
