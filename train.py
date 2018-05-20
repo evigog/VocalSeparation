@@ -19,8 +19,8 @@ def train(verbose):
 
     #adaptive learning rate
     global_step = tf.Variable(0, trainable=False)
-    adaptive_learning_rate = tf.train.exponential_decay(learning_rate_init, global_step, 250, learning_decay, staircase=True)
-    optimizer_a = tf.train.AdamOptimizer(adaptive_learning_rate)
+    # adaptive_learning_rate = tf.train.exponential_decay(learning_rate_init, global_step, 250, learning_decay, staircase=True)
+    optimizer_a = tf.train.AdamOptimizer(learning_rate)
     optimizer = optimizer_a.minimize(total_loss, global_step=global_step)
 
     run_options = tf.RunOptions(report_tensor_allocations_upon_oom = True)
@@ -33,11 +33,11 @@ def train(verbose):
 
         n_batch = len(X)
 
+        print("Number of batch:", n_batch)
+
         idx = list(range(n_batch))
 
         for epoch_idx in range(num_epochs):
-
-
             np.random.shuffle(idx)
 
             loss_epoch = 0
@@ -57,7 +57,7 @@ def train(verbose):
                  tf.train.Saver().save(sess, CKPT_PATH, global_step=epoch_idx)
 
             t1 = time.time()
-            print("epoch: " + repr(epoch_idx) + " || loss_epoch: " + repr(loss_epoch) + " || learning_rate:" sess.run(optimizer_a._lr) + "|| ", end=' ')
+            print("epoch: " + repr(epoch_idx) + " || loss_epoch: " + repr(loss_epoch) + " || learning_rate:" + repr(sess.run(optimizer_a._lr)) + "|| ", end=' ')
 
             timer(t0, t1)
             losses.append(loss_epoch)

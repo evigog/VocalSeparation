@@ -8,8 +8,8 @@ from tensorflow.contrib.rnn import GRUCell, MultiRNNCell
 
 class RNN_network:
     def __init__(self):
-        self.batchX_placeholder = tf.placeholder(tf.float32, [None, None, feature_number])
-        self.batchY_placeholder = tf.placeholder(tf.float32, [None, None, feature_number])
+        self.batchX_placeholder = tf.placeholder(tf.float32, [None, time_max, feature_number])
+        self.batchY_placeholder = tf.placeholder(tf.float32, [None, time_max, feature_number])
 
         self.net = tf.make_template('net', self._net)
         self()
@@ -22,23 +22,14 @@ class RNN_network:
 
         output_rnn, self.current_state = tf.nn.dynamic_rnn(cell, self.batchX_placeholder, dtype=tf.float32)
 
-        input_size = self.shape(self.batchX_placeholder)[2]
         # Dense Layer for the dropout
-        dense = tf.layers.dense(inputs=output_rnn, units= input_size, activation=tf.nn.relu)
-                                #activity_regularizer=tf.contrib.layers.l2_regularizer(regularizer_rate))
-        dropout = tf.layers.dropout(
-            inputs=dense, rate=dropout_rate)  
+        output = tf.layers.dense(inputs=output_rnn, units= feature_number, activation=tf.nn.relu)
 
-        output = tf.layers.dense(inputs=dropout, units=input_size, activation=tf.nn.relu)
         return output
 
     def loss(self):
         output = self()
         return tf.reduce_mean(tf.square(output - self.batchY_placeholder))
-
-    def shape(self, tensor):
-        s = tensor.get_shape()
-        return tuple([s[i].value for i in range(0, len(s))])
 
     @staticmethod
     def load_state(sess, ckpt_path):
