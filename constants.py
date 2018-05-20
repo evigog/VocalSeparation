@@ -1,11 +1,11 @@
 
 #network parameters
-num_epochs = 100
+num_epochs = 60
 feature_number = 257
 time_max = 4
 learning_rate = 0.01
 hidden_size = 256
-n_layer = 3
+n_layer = 1
 learning_rate_init = 0.01
 learning_decay = 0.95
 dropout_rate = 0.4   #drops out dropout_rate % of units
