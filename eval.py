@@ -53,11 +53,11 @@ def loadSong(num_files, feature):
     Y = batches_vocals    #magnitude vocal coefficients in batches (network output)
 
     original_vocal_wavs = [read_wavfile(song_filename, channel='vocals') for song_filename in song_filename_list] #vocals wav
-
+    original_instrumental_wavs = [read_wavfile(song_filename, channel='instrumental') for song_filename in song_filename_list] #instrumental wav used for evaluation
 
     print('input to network is ready!')
 
-    return X, Y, original_vocal_wavs, song_vocals_phase
+    return X, Y, original_vocal_wavs, song_vocals_phase, original_instrumental_wavs
 
 
 def predict(num_files, feature):
@@ -75,7 +75,7 @@ def predict(num_files, feature):
         net.load_state(sess, CKPT_PATH) #load trained model
 
 
-        X, Y, original_vocals_wavs, vocal_phases = loadSong(num_files, feature)  #lists
+        X, Y, original_vocals_wavs, vocal_phases, original_instrumental_wavs = loadSong(num_files, feature)  #lists
 
 
         num_tests = len(X)
@@ -85,8 +85,8 @@ def predict(num_files, feature):
             predict_vocal_magnitude_batch = sess.run(  #coefficients that correspond to voice (in a list)
                 [net()],
                 feed_dict={
-                    net.batchX_placeholder:X,
-                    net.batchY_placeholder:Y
+                    net.batchX_placeholder:X[i],
+                    net.batchY_placeholder:Y[i]
                 })
 
             #restore the magnitude coefficients from network output(batch_to_coef function)
@@ -95,19 +95,26 @@ def predict(num_files, feature):
 
             original_num_frames = vocal_phases[i].shape[0]  #remove padding
             reconstructed_vocal = stft_to_wav(predict_coef_magn[0:original_num_frames], vocal_phases[i])
-            eval = evaluate_voice(original_vocals_wavs[i], reconstructed_vocal)
 
-            #only sdr makes sense in our case
-            print("sdr: ", eval["sdr"], " sir: ", eval["sir"], " sar: ", eval["sar"], " perm: ", eval["perm"])
+            evaluate_len = reconstructed_vocal.shape[0]
+            original_components = np.vstack((original_vocals_wavs[i][0:evaluate_len], original_instrumental_wavs[i][0:evaluate_len]))
+            reconstructed_vocal_stacked = np.vstack((reconstructed_vocal, reconstructed_vocal))
 
-            sdr_list.append(eval["sdr"])
-            sir_list.append(eval["sir"])
-            sar_list.append( eval["sar"])
+            eval = evaluate_voice(original_components, reconstructed_vocal_stacked)
+
+            print("sdr: ", eval["sdr"][0], " sir: ", eval["sir"][0], " sar: ", eval["sar"][0])
+
+            sdr_list.append(eval["sdr"][0])
+            sir_list.append(eval["sir"][0])
+            sar_list.append(eval["sar"][0])
+
 
     #compute global evaluation metric, weighted average using song length
     weights_list = [song.size for song in original_vocals_wavs]
-    global_sdr = np.average(np.asarray(sdr_list), weights=np.asarray(weights_list))
-    print("Global sdr: ",  global_sdr)
+    global_sdr = np.average(np.asarray(sdr_list), axis=0, weights=np.asarray(weights_list))
+    global_sar = np.average(np.asarray(sar_list), axis=0, weights=np.asarray(weights_list))
+    global_sir = np.average(np.asarray(sir_list), axis=0, weights=np.asarray(weights_list))
+    print("Global sdr: ",  global_sdr, " Global sar: ",  global_sar, "Global sir: ",  global_sir)
 
 
 #reference_voice, predicted_voice are the source signals (ndarrays of samples)
