@@ -57,11 +57,10 @@ def train(verbose):
                  tf.train.Saver().save(sess, CKPT_PATH, global_step=epoch_idx)
 
             t1 = time.time()
-            print("epoch: " + repr(epoch_idx) + " || loss_epoch: " + repr(loss_epoch) + " ||", end=' ')
+            print("epoch: " + repr(epoch_idx) + " || loss_epoch: " + repr(loss_epoch) + " || learning_rate:" sess.run(optimizer_a._lr) + "|| ", end=' ')
 
             timer(t0, t1)
             losses.append(loss_epoch)
-            print(sess.run(optimizer_a._lr))
 
         tf.train.Saver().save(sess, SAVE_PATH + "/" + repr(time.time()) + "/" + "save.ckpt")
 
