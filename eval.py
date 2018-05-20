@@ -108,6 +108,9 @@ def predict(num_files, feature):
             sir_list.append(eval["sir"][0])
             sar_list.append(eval["sar"][0])
 
+            save_audio_to_file(reconstructed_vocal, filename='out' + str(i) + '.wav', sample_rate=Preprocessing.FS):
+
+
 
     #compute global evaluation metric, weighted average using song length
     weights_list = [song.size for song in original_vocals_wavs]
