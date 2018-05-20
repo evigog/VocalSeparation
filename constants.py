@@ -3,7 +3,7 @@
 num_epochs = 100
 feature_number = 257
 time_max = 4
-learning_rate = 0.01
+learning_rate = 0.001
 hidden_size = 256
 n_layer = 3
 learning_rate_init = 0.01

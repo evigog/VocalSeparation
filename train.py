@@ -19,8 +19,9 @@ def train(verbose):
 
     #adaptive learning rate
     global_step = tf.Variable(0, trainable=False)
-    adaptive_learning_rate = tf.train.exponential_decay(learning_rate_init, global_step, 100, learning_decay, staircase=True)
-    optimizer = tf.train.AdamOptimizer(adaptive_learning_rate).minimize(total_loss)
+    # adaptive_learning_rate = tf.train.exponential_decay(learning_rate_init, global_step, 1400, learning_decay, staircase=True)
+    optimizer_a = tf.train.AdamOptimizer(learning_rate)
+    optimizer = optimizer_a.minimize(total_loss, global_step=global_step)
 
     run_options = tf.RunOptions(report_tensor_allocations_upon_oom = True)
     with tf.Session() as sess:
@@ -32,36 +33,35 @@ def train(verbose):
 
         n_batch = len(X)
 
+        print("Number of batch:", n_batch)
+
         idx = list(range(n_batch))
 
         for epoch_idx in range(num_epochs):
-
             np.random.shuffle(idx)
 
             loss_epoch = 0
 
             for i in range(n_batch):
-                _total_loss, _train_step, _output = sess.run(
-                    [total_loss, optimizer, net()],
+                _total_loss, _train_step = sess.run(
+                    [total_loss, optimizer],
                     feed_dict={
                         net.batchX_placeholder:X[idx[i]],
                         net.batchY_placeholder:Y[idx[i]]
                     })
                 loss_epoch += _total_loss
-                #if verbose == 1:
-                	#print("batch_loss:", _total_loss)
+                if verbose == 1:
+                    print("batch_loss:", _total_loss)
 
-            if epoch_idx % 5 == 0:
+            if epoch_idx % 10 == 0:
                  tf.train.Saver().save(sess, CKPT_PATH, global_step=epoch_idx)
 
-	    #compute diff with loss in last epoch
-            if epoch_idx > 0:
-            	diff = (losses[-1]- loss_epoch) / 100 
-            	print("loss diff with last epoch: ", diff) 
             t1 = time.time()
-            print("epoch: " + repr(epoch_idx) + " || loss_epoch: " + repr(loss_epoch) + " ||", end=' ')
+            print("epoch: " + repr(epoch_idx) + " || loss_epoch: " + repr(loss_epoch) + " || learning_rate:" + str(sess.run(optimizer_a._lr)) + " || ", end=' ')
+
             timer(t0, t1)
             losses.append(loss_epoch)
+
         tf.train.Saver().save(sess, SAVE_PATH + "/" + repr(time.time()) + "/" + "save.ckpt")
 
     print("finished.")
