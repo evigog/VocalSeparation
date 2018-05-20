@@ -19,8 +19,8 @@ def train(verbose):
 
     #adaptive learning rate
     global_step = tf.Variable(0, trainable=False)
-    adaptive_learning_rate = tf.train.exponential_decay(learning_rate_init, global_step, 1400, learning_decay, staircase=True)
-    optimizer_a = tf.train.AdamOptimizer(adaptive_learning_rate)
+    # adaptive_learning_rate = tf.train.exponential_decay(learning_rate_init, global_step, 1400, learning_decay, staircase=True)
+    optimizer_a = tf.train.AdamOptimizer(learning_rate)
     optimizer = optimizer_a.minimize(total_loss, global_step=global_step)
 
     run_options = tf.RunOptions(report_tensor_allocations_upon_oom = True)

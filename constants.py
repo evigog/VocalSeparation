@@ -1,6 +1,6 @@
 
 #network parameters
-num_epochs = 150
+num_epochs = 300
 feature_number = 257
 time_max = 8
 learning_rate = 0.001
