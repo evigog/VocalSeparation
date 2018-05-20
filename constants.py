@@ -1,9 +1,9 @@
 
 #network parameters
-num_epochs = 60
+num_epochs = 150
 feature_number = 257
 time_max = 8
-learning_rate = 0.01
+learning_rate = 0.001
 hidden_size = 256
 n_layer = 1
 learning_rate_init = 0.01
