@@ -43,6 +43,7 @@ def train(verbose):
             loss_epoch = 0
 
             for i in range(n_batch):
+                print(i)
                 _total_loss, _train_step, _output = sess.run(
                     [total_loss, optimizer, net()],
                     feed_dict={
@@ -57,7 +58,7 @@ def train(verbose):
                  tf.train.Saver().save(sess, CKPT_PATH, global_step=epoch_idx)
 
             t1 = time.time()
-            print("epoch: " + repr(epoch_idx) + " || loss_epoch: " + repr(loss_epoch) + " || learning_rate:" + repr(sess.run(optimizer_a._lr)) + "|| ", end=' ')
+            print("epoch: " + repr(epoch_idx) + " || loss_epoch: " + repr(loss_epoch) + " || learning_rate:" + str(sess.run(optimizer_a._lr)) + "|| ", end=' ')
 
             timer(t0, t1)
             losses.append(loss_epoch)
