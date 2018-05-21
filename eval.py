@@ -94,7 +94,7 @@ def predict(num_files, feature):
             #reconstruct wav signal
 
             original_num_frames = vocal_phases[i].shape[0]  #remove padding
-            reconstructed_vocal = stft_to_wav(predict_coef_magn[0:original_num_frames], vocal_phases[i])
+            reconstructed_vocal = stft_to_wav(predict_coef_magn[0:original_num_frames]*100, vocal_phases[i])
 
             evaluate_len = reconstructed_vocal.shape[0]
             original_components = np.vstack((original_vocals_wavs[i][0:evaluate_len], original_instrumental_wavs[i][0:evaluate_len]))
@@ -108,7 +108,7 @@ def predict(num_files, feature):
             sir_list.append(eval["sir"][0])
             sar_list.append(eval["sar"][0])
 
-            save_audio_to_file(reconstructed_vocal*100, filename='out' + str(i) + '.wav', sample_rate=Preprocessing.FS)
+            save_audio_to_file(reconstructed_vocal, filename='out' + str(i) + '.wav', sample_rate=Preprocessing.FS)
 
 
 
