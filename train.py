@@ -10,12 +10,13 @@ import time
 from tensorflow.core.protobuf import config_pb2
 
 def train(verbose):
-    X, Y = data.load_batch()
+    X_train, Y_train, X_dev, Y_dev = data.load_batch()  #load training and validation batches
 
     net = network.RNN_network()
     total_loss = net.loss()
 
-    losses = []
+    training_losses = []
+    validation_losses = []
 
     #adaptive learning rate
     global_step = tf.Variable(0, trainable=False)
@@ -31,43 +32,66 @@ def train(verbose):
 
         net.load_state(sess, CKPT_PATH)
 
-        n_batch = len(X)
+        n_train_batch = len(X_train)
 
-        print("Number of batch:", n_batch)
+        print("Number of training batch:", n_train_batch)
 
-        idx = list(range(n_batch))
+        idx_train = list(range(n_train_batch))
+
+        n_dev_batch = len(X_dev)
+
+        print("Number of validation batch:", n_dev_batch)
+
+        idx_dev = list(range(n_dev_batch))
 
         for epoch_idx in range(num_epochs):
-            np.random.shuffle(idx)
+            np.random.shuffle(idx_train)
 
             loss_epoch = 0
 
-            for i in range(n_batch):
+            #training mode
+            for i in range(n_train_batch):
                 _total_loss, _train_step = sess.run(
                     [total_loss, optimizer],
                     feed_dict={
-                        net.batchX_placeholder:X[idx[i]],
-                        net.batchY_placeholder:Y[idx[i]]
+                        net.batchX_placeholder:X_train[idx_train[i]],
+                        net.batchY_placeholder:Y_train[idx_train[i]]
                     })
                 loss_epoch += _total_loss
                 if verbose == 1:
                     print("batch_loss:", _total_loss)
 
+            t1 = time.time()
+            print("\nepoch: " + repr(epoch_idx) + " || loss_epoch: " + repr(loss_epoch) + " || ", end=' ')
+
+            timer(t0, t1)
+            training_losses.append(loss_epoch)
+
             if epoch_idx % 10 == 0:
                  tf.train.Saver().save(sess, CKPT_PATH, global_step=epoch_idx)
 
-            t1 = time.time()
-            print("epoch: " + repr(epoch_idx) + " || loss_epoch: " + repr(loss_epoch) + " || learning_rate:" + str(sess.run(optimizer_a._lr)) + " || ", end=' ')
+            if epoch_idx % 2 == 0: #validation mode
 
-            timer(t0, t1)
-            losses.append(loss_epoch)
+                dev_loss_epoch = 0
+                for j in range(n_dev_batch):
+                    _total_dev_loss, _dev_step = sess.run(
+                        [total_loss, optimizer],
+                        feed_dict={
+                            net.batchX_placeholder: X_dev[idx_dev[j]],
+                            net.batchY_placeholder: Y_dev[idx_dev[j]]
+                        })
+                dev_loss_epoch += _total_dev_loss   #dev loss across all validation batches
+                print('********epoch: '+ repr(epoch_idx) + " || validation loss: " + repr(dev_loss_epoch) + " || ", end=' ')
+                validation_losses.append(dev_loss_epoch)
+
 
         tf.train.Saver().save(sess, SAVE_PATH + "/" + repr(time.time()) + "/" + "save.ckpt")
 
     print("finished.")
-    losses = np.array(losses)
-
-    np.save(SAVE_PATH + "losses.npy", losses)
+    training_losses = np.array(training_losses)
+    np.save(SAVE_PATH + "training_losses.npy", training_losses)
+    validation__losses = np.array(validation_losses)
+    np.save(SAVE_PATH + "validation_losses.npy",  validation__losses)
 
 def setup_path(resume):
     if not os.path.exists(SAVE_PATH):
