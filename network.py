@@ -22,8 +22,13 @@ class RNN_network:
 
         output_rnn, self.current_state = tf.nn.dynamic_rnn(cell, self.batchX_placeholder, dtype=tf.float32)
 
+        input_size = self.shape(self.batchX_placeholder)[2]
         # Dense Layer for the dropout
-        output = tf.layers.dense(inputs=output_rnn, units= feature_number, activation=tf.nn.relu)
+        dense = tf.layers.dense(inputs=output_rnn, units=input_size, activation=tf.nn.relu)
+        dropout = tf.layers.dropout(inputs = dense, rate = dropout_rate)
+
+        #Final layer
+        output = tf.layers.dense(inputs=dropout, units=input_size, activation=tf.nn.relu)
 
         return output
 
