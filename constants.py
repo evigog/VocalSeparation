@@ -8,7 +8,7 @@ hidden_size = 256
 n_layer = 3
 #learning_rate_init = 0.01
 #learning_decay = 0.95
-#dropout_rate = 0.4   #drops out dropout_rate % of units
+dropout_rate = 0.4   #drops out dropout_rate % of units
 #regularizer_rate = 0.5
 
 #paths
