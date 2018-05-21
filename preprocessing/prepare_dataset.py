@@ -9,17 +9,19 @@ from pathlib import Path
 
 def create_all_dataset(n_files):
     path_trainset = Path('data/Wavfile/train')
-    path_testset = Path('data/Wavfile/test')
 
     if not(path_trainset.is_dir()):
-        print("Spliting the dataset into training and validation set...")
+        print("Spliting the dataset into training, validation and testing set...")
         split_dataset()
 
 
     n_files_train = int(n_files * TRAINING_SPLIT)
-    n_files_test = int(n_files * (1 - TRAINING_SPLIT))
+    n_files_test = int(n_files * (TEST_SPLIT))
+    n_files_dev = n_files - (n_files_train + n_files_test)
     print("Creating trainset...", n_files_train)
     create_dataset("train", n_files_train)
+    print("Creating devset...", n_files_dev)
+    create_dataset("dev", n_files_dev)
     print("Creating testset...", n_files_test)
     create_dataset("test", n_files_test)
 
@@ -78,36 +80,43 @@ def create_dataset(load_path, n_files):
         print('Saved coefficients.')
 
 
-#split dataset into training and testing
-#create /train and /test subfolders inside folder data/Wavfile
+#split dataset into training. validation and testing
+#create /train, /dev and /test subfolders inside folder data/Wavfile
 def split_dataset():
     path_dataset = 'data/Wavfile'
-    filenames = os.listdir(path_dataset) #names of all .wav files
+    filenames = os.listdir(path_dataset)[0:10] #names of all .wav files
     rand.seed(230)
     rand.shuffle(filenames)  # shuffles the ordering of filenames (deterministic given the chosen seed)
 
-    split_1 = int(TRAINING_SPLIT * len(filenames))  #training set
-    train_filenames = filenames[:split_1]
-    test_filenames = filenames[split_1:]
+    train_lim = int(TRAINING_SPLIT * len(filenames))
+    test_lim = int((1 - TEST_SPLIT) * len(filenames))
 
-    # no validation set used!
-    # split_2 = int((1 - TRAINING_SPLIT) * len(filenames))
-    # dev_filenames = filenames[split_1:split_2]
+    train_filenames = filenames[: train_lim]
+    test_filenames = filenames[test_lim:]
+    dev_filenames = filenames[train_lim:test_lim]
+
 
     train_path = os.path.join(path_dataset, 'train')
     test_path = os.path.join(path_dataset, 'test')
+    dev_path = os.path.join(path_dataset, 'dev')
     if not os.path.exists(train_path):
         os.makedirs(train_path)
     if not os.path.exists(test_path):
         os.makedirs(test_path)
+    if not os.path.exists(dev_path):
+        os.makedirs(dev_path)
 
     #move training files to data/Wavefile/train folder
     for f in train_filenames:
       os.rename(os.path.join(path_dataset, f), os.path.join(train_path, f))
 
-    # move training files to data/Wavefile/test folder
+    # move files to data/Wavefile/test folder
     for f in test_filenames:
         os.rename(os.path.join(path_dataset, f), os.path.join(test_path, f))
+
+    # move files to data/Wavefile/dev folder
+    for f in dev_filenames:
+        os.rename(os.path.join(path_dataset, f), os.path.join(dev_path, f))
 
 #take care of nan or inf values
 def remove_dirty(data):  # SHOULD NOT BE NECESSARY AFTER MFCC FIX
