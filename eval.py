@@ -108,7 +108,7 @@ def predict(num_files, feature):
             sir_list.append(eval["sir"][0])
             sar_list.append(eval["sar"][0])
 
-            save_audio_to_file(reconstructed_vocal, filename='out' + str(i) + '.wav', sample_rate=Preprocessing.FS)
+            save_audio_to_file(reconstructed_vocal*100, filename='out' + str(i) + '.wav', sample_rate=Preprocessing.FS)
 
 
 
