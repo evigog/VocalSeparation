@@ -99,7 +99,7 @@ def predict(num_files, feature):
             #reconstruct wav signal
 
             original_num_frames = vocal_phases[i].shape[0]  #remove padding
-            reconstructed_vocal = stft_to_wav(predict_coef_magn[0:original_num_frames], vocal_phases[i])
+            reconstructed_vocal = stft_to_wav(predict_coef_magn[0:original_num_frames] * 100, vocal_phases[i])
 
             # save predicted vocal wav
             save_audio_to_file(reconstructed_vocal,  os.path.join(wav_path, 'out_%i.wav' %i))
