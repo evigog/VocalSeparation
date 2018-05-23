@@ -8,6 +8,7 @@ import argparse
 import mir_eval  #for evaluating the constracted voice
 import os
 import numpy as np
+from pathlib import Path
 
 
 def loadSong(num_files, feature):
@@ -69,6 +70,10 @@ def predict(num_files, feature):
     sir_list = []
     sar_list = []
 
+    wav_path = Path(os.path.join(SAVE_PATH, 'no_dropout/vocal_wavs'))
+    if not (wav_path.is_dir()):
+        os.mkdir(wav_path)
+
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
 
@@ -95,6 +100,9 @@ def predict(num_files, feature):
 
             original_num_frames = vocal_phases[i].shape[0]  #remove padding
             reconstructed_vocal = stft_to_wav(predict_coef_magn[0:original_num_frames], vocal_phases[i])
+
+            # save predicted vocal wav
+            save_audio_to_file(reconstructed_vocal,  os.path.join(wav_path, 'out_%i.wav' %i))
 
             evaluate_len = reconstructed_vocal.shape[0]
             original_components = np.vstack((original_vocals_wavs[i][0:evaluate_len], original_instrumental_wavs[i][0:evaluate_len]))
