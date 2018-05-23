@@ -8,8 +8,10 @@ import os
 import shutil
 import time
 from tensorflow.core.protobuf import config_pb2
+from tensorflow.python.client import device_lib
 
 def train(verbose):
+
     X_train, Y_train, X_dev, Y_dev = data.load_batch()  #load training and validation batches
 
     net = network.RNN_network()
@@ -48,7 +50,6 @@ def train(verbose):
             np.random.shuffle(idx_train)
 
             loss_epoch = 0
-
             #training mode
             for i in range(n_train_batch):
                 _total_loss, _train_step = sess.run(
@@ -116,6 +117,6 @@ if __name__ == '__main__':
     parser.add_argument('--verbose', default=0, help = "int, 1 if you want the batch loss else 0.", type = int)
 
     args = parser.parse_args()
-
+    print(device_lib.list_local_devices())
     setup_path(args.resume)
     train(args.verbose)

@@ -84,7 +84,7 @@ def create_dataset(load_path, n_files):
 #create /train, /dev and /test subfolders inside folder data/Wavfile
 def split_dataset():
     path_dataset = 'data/Wavfile'
-    filenames = os.listdir(path_dataset)[0:10] #names of all .wav files
+    filenames = os.listdir(path_dataset)  #names of all .wav files
     rand.seed(230)
     rand.shuffle(filenames)  # shuffles the ordering of filenames (deterministic given the chosen seed)
 
