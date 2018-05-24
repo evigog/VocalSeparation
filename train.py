@@ -75,8 +75,8 @@ def train(verbose):
 
                 dev_loss_epoch = 0
                 for j in range(n_dev_batch):
-                    _total_dev_loss, _dev_step = sess.run(
-                        [total_loss, optimizer],
+                    _total_dev_loss = sess.run(
+                        [total_loss],
                         feed_dict={
                             net.batchX_placeholder: X_dev[idx_dev[j]],
                             net.batchY_placeholder: Y_dev[idx_dev[j]]
