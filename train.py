@@ -81,7 +81,7 @@ def train(verbose):
                             net.batchX_placeholder: X_dev[idx_dev[j]],
                             net.batchY_placeholder: Y_dev[idx_dev[j]]
                         })
-                dev_loss_epoch += _total_dev_loss   #dev loss across all validation batches
+                dev_loss_epoch += _total_dev_loss[0]   #dev loss across all validation batches
                 print('********epoch: '+ repr(epoch_idx) + " || validation loss: " + repr(dev_loss_epoch) + " || ", end=' ')
                 validation_losses.append(dev_loss_epoch)
 
