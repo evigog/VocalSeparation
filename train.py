@@ -71,7 +71,7 @@ def train(verbose):
             if epoch_idx % 10 == 0:
                  tf.train.Saver().save(sess, CKPT_PATH, global_step=epoch_idx)
 
-            if epoch_idx % 2 == 0: #validation mode
+            if epoch_idx % 1 == 0: #validation mode
 
                 dev_loss_epoch = 0
                 for j in range(n_dev_batch):
