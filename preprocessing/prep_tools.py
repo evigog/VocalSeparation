@@ -6,6 +6,7 @@ from scipy.linalg import lstsq
 import wave
 import array
 from scipy.io import wavfile
+import librosa.feature as lib
 
 from .Parameters import *
 from .audio_utilities import reconstruct_signal_griffin_lim
@@ -43,8 +44,11 @@ def wav_to_mfcc(wav_filename, channel='mixed'):
         mweights (2D numpy array): The Mel Spectrum weights used for Griffin-Lim reconstruction.
     """
     samples = read_wavfile(wav_filename, channel)
-    mfccs, mspec, mweights = mfcc(samples)
-    return mfccs, mspec, mweights
+    #mfccs, mspec, mweights = mfcc(samples)
+    mfccs = lib.mfcc(samples.astype(float), n_mfcc=40)
+   # check = np.any(np.isnan(mfccs))
+
+    return mfccs.T   #, mspec, mweights
 
 
 def mfcc_to_wav(mfccs, mel_weights):
@@ -483,3 +487,5 @@ def dtw(x, y, dist=euclidean_distance):
     for [p1, p0] in path:
         cost = cost + LD[p0, p1]
     return cost/(len(x)+len(y)), LD, AD, path
+
+
