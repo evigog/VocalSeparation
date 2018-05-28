@@ -7,8 +7,9 @@ import argparse
 import os
 import shutil
 import time
-from tensorflow.core.protobuf import config_pb2
 from tensorflow.python.client import device_lib
+
+from preprocessing.prepare_dataset import remove_dirty
 
 def train(verbose):
 
@@ -52,13 +53,18 @@ def train(verbose):
             loss_epoch = 0
             #training mode
             for i in range(n_train_batch):
-                _total_loss, _train_step = sess.run(
-                    [total_loss, optimizer],
+                _total_loss, _train_step, net_output = sess.run(
+                    [total_loss, optimizer, net()],
                     feed_dict={
                         net.batchX_placeholder:X_train[idx_train[i]],
                         net.batchY_placeholder:Y_train[idx_train[i]]
                     })
                 loss_epoch += _total_loss
+
+                #check for NaNs in network output
+                if (np.any(np.isnan(net_output))):
+                    print("\nepoch: " + repr(epoch_idx) + "Nan output")
+
                 if verbose == 1:
                     print("batch_loss:", _total_loss)
 
