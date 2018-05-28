@@ -13,7 +13,7 @@ from preprocessing.prepare_dataset import remove_dirty
 
 def train(verbose):
 
-    X_train, Y_train, X_dev, Y_dev = data.load_batch()  #load training and validation batches
+    X_train, Y_train, X_dev, Y_dev = data.load_batch('mfcc')  #load training and validation batches
 
     net = network.RNN_network()
     total_loss = net.loss()
@@ -63,7 +63,7 @@ def train(verbose):
 
                 #check for NaNs in network output
                 if (np.any(np.isnan(net_output))):
-                    print("\nepoch: " + repr(epoch_idx) + "Nan output")
+                    print("\nepoch: " + repr(epoch_idx) + " Nan output!")
 
                 if verbose == 1:
                     print("batch_loss:", _total_loss)
