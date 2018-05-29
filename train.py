@@ -25,7 +25,12 @@ def train(verbose):
     global_step = tf.Variable(0, trainable=False)
     # adaptive_learning_rate = tf.train.exponential_decay(learning_rate_init, global_step, 1400, learning_decay, staircase=True)
     optimizer_a = tf.train.AdamOptimizer(learning_rate)
-    optimizer = optimizer_a.minimize(total_loss, global_step=global_step)
+    # optimizer = optimizer_a.minimize(total_loss, global_step=global_step)
+
+    #add gradient clipping
+    gradients, variables = zip(*optimizer_a.compute_gradients(total_loss))
+    gradients, _ = tf.clip_by_global_norm(gradients, clip_norm=1.0)
+    optimizer = optimizer_a.apply_gradients(zip(gradients, variables), global_step=global_step)
 
     run_options = tf.RunOptions(report_tensor_allocations_upon_oom = True)
     with tf.Session() as sess:
@@ -53,6 +58,7 @@ def train(verbose):
             loss_epoch = 0
             #training mode
             for i in range(n_train_batch):
+
                 _total_loss, _train_step, net_output = sess.run(
                     [total_loss, optimizer, net()],
                     feed_dict={
@@ -61,7 +67,7 @@ def train(verbose):
                     })
                 loss_epoch += _total_loss
 
-                #check for NaNs in network output
+                 #check for NaNs in network output
                 if (np.any(np.isnan(net_output))):
                     print("\nepoch: " + repr(epoch_idx) + " Nan output!")
 
