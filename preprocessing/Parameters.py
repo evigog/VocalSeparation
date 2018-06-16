@@ -15,6 +15,7 @@ class Preprocessing:
     ONESIDED = True
     BOUNDARY = None
     PADDED = False
+    eps = 0.001
 
 class Postprocessing:
     DENOISE_FACTOR = 5  # the larger it is, the smoother curve will be

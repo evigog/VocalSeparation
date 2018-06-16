@@ -48,14 +48,30 @@ def create_dataset(load_path, n_files):
         stft_bg_norm = [np.divide(src_bg[0], 100) for src_bg in stft_bg]
         stft_vc_norm = [np.divide(src_vc[0], 100) for src_vc in stft_vc]
 
+	##taking logarithms of STFTs
+        log_stft_mixed_norm = [np.log(src_mx+Preprocessing.eps) for src_mx in stft_mixed_norm]
+        log_stft_bg_norm = [np.log(src_bg+Preprocessing.eps) for src_bg in stft_bg_norm]
+        log_stft_vc_norm = [np.log(src_vc+Preprocessing.eps) for src_vc in stft_vc_norm]
+
         #produce MFCC coefficients
-        mfcc_mixed = [wav_to_mfcc(f, channel='mixed')[0] for f in filenames]
-        mfcc_bg = [wav_to_mfcc(f, channel='instrumental')[0] for f in filenames]
-        mfcc_vc = [wav_to_mfcc(f, channel='vocals')[0] for f in filenames]
+        mfcc_mixed = [wav_to_mfcc(f, channel='mixed') for f in filenames]
+        mfcc_bg = [wav_to_mfcc(f, channel='instrumental') for f in filenames]
+        mfcc_vc = [wav_to_mfcc(f, channel='vocals') for f in filenames]
+	
+        mins_mx, mins_bg, mins_vc = [], [], []
+        for mm, mb, mv in zip(mfcc_mixed, mfcc_bg, mfcc_vc):
+            mins_mx.append(np.min(mm))
+            mins_bg.append(np.min(mb))
+            mins_vc.append(np.min(mv))
+        absmin_mx, absmin_bg, absmin_vc = abs(np.min(mins_mx)), abs(np.min(mins_bg)), abs(np.min(mins_vc))
+        ##taking logarithms of MFCCs
+        log_mfcc_mixed = [np.log(src_mx+absmin_mx+Preprocessing.eps) for src_mx in mfcc_mixed]
+        log_mfcc_bg = [np.log(src_bg+absmin_bg+Preprocessing.eps) for src_bg in mfcc_bg]
+        log_mfcc_vc = [np.log(src_vc+absmin_vc+Preprocessing.eps) for src_vc in mfcc_vc]	
 
         #save only the magnitude (stft)
-        np.savez_compressed('coefficients/stft_%s.npz' %load_path, mixed=stft_mixed ,bg=stft_bg, vc=stft_vc)
-        np.savez_compressed('coefficients/mfcc_%s.npz' %load_path, mixed=mfcc_mixed ,bg=mfcc_bg, vc=mfcc_vc)
+        #np.savez_compressed('coefficients/stft_%s.npz' %load_path, mixed=stft_mixed ,bg=stft_bg, vc=stft_vc)
+        #np.savez_compressed('coefficients/mfcc_%s.npz' %load_path, mixed=mfcc_mixed ,bg=mfcc_bg, vc=mfcc_vc)
 
         #split coef matrices into batches
 
@@ -65,15 +81,15 @@ def create_dataset(load_path, n_files):
         #batch_stft_vc = [coef_to_batch(src_vc[0]) for src_vc in stft_vc]
 
         #STFT - with normalization
-        batch_stft_mixed = [coef_to_batch(src_mixed) for src_mixed in stft_mixed_norm]
-        batch_stft_bg = [coef_to_batch(src_bg) for src_bg in  stft_bg_norm]
-        batch_stft_vc = [coef_to_batch(src_vc) for src_vc in stft_vc_norm]
+        batch_stft_mixed = [coef_to_batch(src_mixed) for src_mixed in log_stft_mixed_norm]
+        batch_stft_bg = [coef_to_batch(src_bg) for src_bg in  log_stft_bg_norm]
+        batch_stft_vc = [coef_to_batch(src_vc) for src_vc in log_stft_vc_norm]
 
 
         #MFCC
-        batch_mfcc_mixed = [coef_to_batch(src_mixed) for src_mixed in mfcc_mixed]
-        batch_mfcc_bg = [coef_to_batch(src_bg) for src_bg in mfcc_bg]
-        batch_mfcc_vc = [coef_to_batch(src_vc) for src_vc in mfcc_vc]
+        batch_mfcc_mixed = [coef_to_batch(src_mixed) for src_mixed in log_mfcc_mixed]
+        batch_mfcc_bg = [coef_to_batch(src_bg) for src_bg in log_mfcc_bg]
+        batch_mfcc_vc = [coef_to_batch(src_vc) for src_vc in log_mfcc_vc]
 
         np.savez_compressed('coefficients/batch_stft_%s.npz' %load_path, mixed=batch_stft_mixed ,bg=batch_stft_bg, vc=batch_stft_vc)
         np.savez_compressed('coefficients/batch_mfcc_%s.npz' %load_path, mixed=batch_mfcc_mixed ,bg=batch_mfcc_bg, vc=batch_mfcc_vc)
